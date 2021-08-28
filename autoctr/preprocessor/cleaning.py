@@ -1,3 +1,13 @@
+# -*- coding:utf-8 -*-
+"""
+
+Author: 
+	Zhengxin Fang, 358746595@qq.com
+
+Clean the data (impute missing values and outliers)
+
+"""
+
 import numpy as np
 np.set_printoptions(threshold=np.inf)
 import pandas as pd
