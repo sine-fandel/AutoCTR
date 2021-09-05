@@ -9,9 +9,11 @@ and convert the input data into suitable version
 
 """
 import pandas as pd
-from .cleaning import Impute
-from .profile import Profiling
+from cleaning import Impute
+from profile import Profiling
 from sklearn.model_selection import train_test_split
+from feature_column import SparseFeat, DenseFeat
+
 
 class Input (object) :
 	def __init__ (self, data_path, sep=",", target="rating", outlier="z_score", correlation="pearson", impute_method="knn", test_size=0.2) :
@@ -23,10 +25,10 @@ class Input (object) :
 	def preprocessing (self) :
 		profile = Profiling (self.data, outlier=self.outlier, correlation=self.correlation)
 		impute = Impute (self.data)
+		
 		print ("************************************ The Profile of the Dataset ************************************")
 		print (profile.summary ())
 		feature_names = profile.summary ().columns.values
-		summary = profile.summary ().values
 
 		if self.impute_method == 'knn' :
 			impute.KnnImputation (n_neighbors=2)
@@ -41,6 +43,20 @@ class Input (object) :
 
 		print ("Finished imputation by ", self.impute_method)
 
+		types_dict = profile.summary ().loc['types'].to_dict ()
+		fixlen_feature_columns = []
+		for key, value in types_dict.items () :
+			if value == "categorical" :
+				# data[key] = data[key].fillna ('-1', )
+				fixlen_feature_columns.append (DenseFeat (key, self.data[key].nunique ()))
+				
+			elif value == "numeric" :
+				# data[key] = data[key].fillna (0, )
+				# lbe = LabelEncoder ()
+				# data[key] = lbe.fit_transform (data[key])
+				fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
+
+		print (fixlen_feature_columns)
 		train, test = train_test_split (self.data, test_size=0.2, random_state=2021)
 		train_model_input = {name: train[name] for name in feature_names}
 		test_model_input = {name: test[name] for name in feature_names}
@@ -52,15 +68,16 @@ class Input (object) :
 
 
 
-# def run (data_path, outlier='z_score', correlation='pearson'):
-# 	"""Entry point for console_scripts
-# 	"""
+def run (data_path, outlier='z_score', correlation='pearson'):
+	"""Entry point for console_scripts
+	"""
 
-# 	profiling = Input (data_path='/Users/apple/AutoCTR project/dataset/Movielens/ml-1m/ratings.dat', sep="::")
+	profiling = Input (data_path=data_path, sep=",")
 
-# 	print (profiling.preprocessing ())
+	profiling.preprocessing ()
 
 
-# if __name__ == "__main__" :
-# 	run (data_path='/Users/apple/AutoCTR project/dataset/Movielens/ml-1m/ratings.dat')    
-# 	# run (data_path='/Users/apple/project/AI + elearning project/data_profiling/test/west.csv')
+if __name__ == "__main__" :
+	# data = pd.read_csv('/Users/apple/Downloads/tf-experiment/criteo_sample.txt')
+
+	run (data_path='/Users/apple/Downloads/tf-experiment/criteo_sample.txt')
