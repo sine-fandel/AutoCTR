@@ -9,10 +9,10 @@ and convert the input data into suitable version
 
 """
 import pandas as pd
-from cleaning import Impute
-from profile import Profiling
+from .cleaning import Impute
+from .profile import Profiling
 from sklearn.model_selection import train_test_split
-from feature_column import SparseFeat, DenseFeat
+from .feature_column import SparseFeat, DenseFeat
 
 
 class Input (object) :
