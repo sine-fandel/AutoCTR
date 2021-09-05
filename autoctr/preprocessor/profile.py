@@ -21,6 +21,7 @@ from pandas.api import types
 from six import string_types
 from scipy.stats import chi2_contingency
 import numpy as np
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
 
 class Profiling(object):
@@ -160,10 +161,15 @@ class Profiling(object):
 
 		elif data_type == -1 :
 			# data type is numerical and categorical
-			label = preprocessing.LabelEncoder ()
-			for c in self.cat_col :
-				self.df[c] = label.fit_transform (self.df[c])
+			# label = preprocessing.LabelEncoder ()
 
+			for c in self.cat_col :
+				lbe = preprocessing.LabelEncoder()
+				self.df[c] = self.df[c].astype ('str')
+				self.df[c] = lbe.fit_transform (self.df[c])
+
+
+			
 			cor_result = self.df.corr (method=method)
 
 		return pd.Series (dict (cor_result[self.df.columns[-1]]), name='correlation')
@@ -243,10 +249,10 @@ class Profiling(object):
 	def _get_columns_info(self, stats):
 		column_info = {}
 		column_info[self.TYPE_CONSTANT] = stats['uniques'][stats['uniques'] == 1].index
-		column_info[self.TYPE_BOOL] = stats['uniques'][stats['uniques'] == 2].index
+		# column_info[self.TYPE_BOOL] = stats['uniques'][stats['uniques'] == 2].index
 		rest_columns = self.get_columns(self.df,
 										self.EXCLUDE,
-										column_info['constant'].union(column_info['bool']))
+										column_info['constant'])
 		column_info[self.TYPE_NUMERIC] = pd.Index([c for c in rest_columns
 												if types.is_numeric_dtype(self.df[c])])
 		rest_columns = self.get_columns(
@@ -410,9 +416,9 @@ class Profiling(object):
 	def uniques(self):
 		return self.df.columns[self.columns_stats.loc['types'] == 'unique']
 
-	@property
-	def bools(self):
-		return self.df.columns[self.columns_stats.loc['types'] == 'bool']
+	# @property
+	# def bools(self):
+	# 	return self.df.columns[self.columns_stats.loc['types'] == 'bool']
 
 	@property
 	def missing_frac(self):
