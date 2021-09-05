@@ -56,12 +56,13 @@ class Input (object) :
 				# data[key] = lbe.fit_transform (data[key])
 				fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
 
-		print (fixlen_feature_columns)
 		train, test = train_test_split (self.data, test_size=0.2, random_state=2021)
 		train_model_input = {name: train[name] for name in feature_names}
 		test_model_input = {name: test[name] for name in feature_names}
+		dnn_feature_columns = fixlen_feature_columns
+		linear_feature_columns = fixlen_feature_columns
 
-		return train_model_input, test_model_input
+		return train_model_input, test_model_input, linear_feature_columns, dnn_feature_columns
 
 		
 
