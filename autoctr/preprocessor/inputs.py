@@ -16,29 +16,26 @@ from .feature_column import SparseFeat, DenseFeat
 
 
 class Input (object) :
-	def __init__ (self, data_path, sep=",", target="rating", outlier="z_score", correlation="pearson", impute_method="knn", test_size=0.2) :
+	def __init__ (self, data_path, sep=",", target="rating", test_size=0.2) :
 		self.data = pd.read_csv (data_path, sep=sep)
-		self.outlier = outlier
-		self.correlation = correlation
-		self.impute_method = impute_method
 
-	def preprocessing (self) :
-		profile = Profiling (self.data, outlier=self.outlier, correlation=self.correlation)
+	def preprocessing (self, outlier="z_score", correlation="pearson", impute_method="knn") :
+		profile = Profiling (self.data, outlier=outlier, correlation=correlation)
 		impute = Impute (self.data)
 		
 		print ("************************************ The Profile of the Dataset ************************************")
 		print (profile.summary ())
 		feature_names = profile.summary ().columns.values
 
-		if self.impute_method == 'knn' :
+		if impute_method == 'knn' :
 			impute.KnnImputation (n_neighbors=2)
-		elif self.impute_method == 'simple' :
+		elif impute_method == 'simple' :
 			impute,SimpleImputation ()
-		elif self.impute_method == 'iterative' :
+		elif impute_method == 'iterative' :
 			impute.IterativeImputation ()
-		elif self.impute_method == 'forest' :
+		elif impute_method == 'forest' :
 			impute.RandomforestImputation ()
-		elif self.impute_method == 'mf' :
+		elif impute_method == 'mf' :
 			impute.MatrixFactorization ()
 
 		print ("Finished imputation by ", self.impute_method)
