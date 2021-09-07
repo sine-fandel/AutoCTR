@@ -38,7 +38,7 @@ class Input (object) :
 		elif impute_method == 'mf' :
 			impute.MatrixFactorization ()
 
-		print ("Finished imputation by ", self.impute_method)
+		print ("Finished imputation by ", impute_method)
 
 		types_dict = profile.summary ().loc['types'].to_dict ()
 		fixlen_feature_columns = []
