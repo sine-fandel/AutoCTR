@@ -32,8 +32,10 @@ class Impute :
 		ic_data = self.df
 		imp = SimpleImputer (missing_values=np.nan, strategy=strategy)
 		c_data = imp.fit_transform (ic_data)
-	
-		return pd.DataFrame (ic_data)
+		cp = pd.DataFrame (c_data)
+		cp.columns = ic_data.columns.values
+
+		return cp
 
 	def IterativeImputation (self, max_iter=10) :
 		"""
@@ -43,8 +45,10 @@ class Impute :
 		ic_data = self.df
 		imp = IterativeImputer(max_iter=max_iter, sample_posterior=True, random_state=0)
 		c_data = imp.fit_transform (ic_data)
+		cp = pd.DataFrame (c_data)
+		cp.columns = ic_data.columns.values
 
-		return pd.DataFrame (ic_data)
+		return cp
 
 	def RandomforestImputation (self, n_estimators=100) :
 		"""
@@ -122,8 +126,10 @@ class Impute :
 			trainRmse = math.sqrt (rmse * 1.0 / n)
 		
 		c_data = np.dot (U, M.T)
+		cp = pd.DataFrame (c_data)
+		cp.columns = ic_data.columns.values
 
-		return pd.DataFrame (c_data)
+		return cp
 		
 
 
