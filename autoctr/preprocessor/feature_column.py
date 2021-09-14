@@ -11,6 +11,8 @@ One step of preprocessing the data
 
 from collections import OrderedDict, namedtuple, defaultdict
 from itertools import chain
+from ..layers import SequencePoolingLayer
+from ..layers import concat_fun
 
 import torch
 import torch.nn as nn
@@ -88,6 +90,20 @@ class DenseFeat(namedtuple('DenseFeat', ['name', 'dimension', 'dtype'])):
 
 	def __hash__(self):
 		return self.name.__hash__()
+
+def combined_dnn_input(sparse_embedding_list, dense_value_list):
+	if len(sparse_embedding_list) > 0 and len(dense_value_list) > 0:
+		sparse_dnn_input = torch.flatten(
+			torch.cat(sparse_embedding_list, dim=-1), start_dim=1)
+		dense_dnn_input = torch.flatten(
+			torch.cat(dense_value_list, dim=-1), start_dim=1)
+		return concat_fun([sparse_dnn_input, dense_dnn_input])
+	elif len(sparse_embedding_list) > 0:
+		return torch.flatten(torch.cat(sparse_embedding_list, dim=-1), start_dim=1)
+	elif len(dense_value_list) > 0:
+		return torch.flatten(torch.cat(dense_value_list, dim=-1), start_dim=1)
+	else:
+		raise NotImplementedError
 
 def build_input_features(feature_columns):
 	# Return OrderedDict: {feature_name:(start, start+dimension)}

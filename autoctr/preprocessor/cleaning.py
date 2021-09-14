@@ -84,8 +84,10 @@ class Impute :
 		ic_data = self.df.copy ()
 		knn = KNNImputer (n_neighbors=n_neighbors, weights=weights)
 		c_data = knn.fit_transform (ic_data)
+		cp = pd.DataFrame (c_data)
+		cp.columns = ic_data.columns.values
 
-		return pd.DataFrame (c_data)
+		return cp
 
 	def MatrixFactorization (self, lr=0.00001, lamda=0.001, epoch=500, factor=20) :
 		"""
