@@ -77,7 +77,11 @@ class Impute :
 
 			ic_data.loc [ic_data.iloc[:, i].isnull (), i] = y_predict
 		
-		return pd.DataFrame (ic_data)
+		cp = pd.DataFrame (ic_data)
+		cp.columns = ic_data.columns.values
+
+		return cp
+
 
 	def KnnImputation (self, n_neighbors, weights="uniform") :
 		"""
