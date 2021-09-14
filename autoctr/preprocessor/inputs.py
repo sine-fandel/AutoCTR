@@ -20,6 +20,7 @@ class Input (object) :
 	def __init__ (self, data_path, sep=",", target="label", test_size=0.2) :
 		self.data = pd.read_csv (data_path, sep=sep)
 		self.target = target
+		self.test_size = test_size
 
 	def preprocessing (self, outlier="z_score", correlation="pearson", impute_method="knn") :
 		profile = Profiling (self.data, outlier=outlier, correlation=correlation)
@@ -54,7 +55,7 @@ class Input (object) :
 					
 				elif value == "numeric" :
 					fixlen_feature_columns.append (DenseFeat (key, 1, ))
-		train, test = train_test_split (self.data, test_size=0.2, random_state=2021)
+		train, test = train_test_split (self.data, test_size=self.test_size, random_state=2021)
 		train_model_input = {name: train[name] for name in feature_names}
 		test_model_input = {name: test[name] for name in feature_names}
 		dnn_feature_columns = fixlen_feature_columns
