@@ -10,15 +10,15 @@ class AutoCTR :
 	:param target: The training / testing target of all model
 	:param sep: The seq of the dataset
 	"""
-	def __init__ (self, data_path, target, seq=",") :
+	def __init__ (self, data_path, target, sep=",") :
 		self.data_path = data_path
 		self.target = target
 		self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, DCNMix, ONN, WDL]
-		self.seq = seq
+		self.sep = sep
 		self.input_list = []
 
 	def preprocessing (self, test_size=0.2) :
-		profiling = Input (data_path=self.data_path, sep=self.seq, test_size=test_size)
+		profiling = Input (data_path=self.data_path, sep=self.sep, target=self.target, test_size=test_size)
 		self.input_list = profiling.preprocessing (impute_method='iterative')
 
 	def run (self, batch_size=32, epochs=100, verbose=2) :
