@@ -227,8 +227,8 @@ class BaseModel(nn.Module) :
 		callbacks.model.stop_training = False
 
 		# Train
-		print("Train on {0} samples, validate on {1} samples, {2} steps per epoch".format(
-			len(train_tensor_data), len(val_y), steps_per_epoch))
+		# print("Train on {0} samples, validate on {1} samples, {2} steps per epoch".format(
+		# 	len(train_tensor_data), len(val_y), steps_per_epoch))
 		
 		print ("----------------", self.this_model, "----------------")
 		with alive_bar (epochs) as bar :
@@ -445,7 +445,6 @@ class BaseModel(nn.Module) :
 		:param loss: String (name of objective function) or objective function. See [losses](https://pytorch.org/docs/stable/nn.functional.html#loss-functions).
 		:param metrics: List of metrics to be evaluated by the model during training and testing. Typically you will use `metrics=['accuracy']`.
 		"""
-		print ("compile")
 		self.metrics_names = ["loss"]
 		self.optim = self._get_optim(optimizer)
 		self.loss_func = self._get_loss_func(loss)

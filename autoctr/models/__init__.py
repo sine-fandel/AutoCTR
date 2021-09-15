@@ -3,3 +3,12 @@ from .afm import AFM
 from .deepfm import DeepFM
 from .autoint import AutoInt
 from .afn import AFN
+from .nfm import NFM
+from .pnn import PNN
+from .dcn import DCN
+from .xdeepfm import xDeepFM
+from .onn import ONN
+from .ifm import IFM
+from .difm import DIFM
+from .dcnmix import DCNMix
+from .wdl import WDL
