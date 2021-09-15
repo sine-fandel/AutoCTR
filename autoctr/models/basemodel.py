@@ -17,6 +17,7 @@ import torch.utils.data as Data
 from sklearn.metrics import *
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from alive_progress import alive_bar
 
 try:
 	from tensorflow.python.keras.callbacks import CallbackList
@@ -92,13 +93,13 @@ class Linear(nn.Module):
 
 
 class BaseModel(nn.Module) :
-	def __init__(self, linear_feature_columns, dnn_feature_columns, l2_reg_linear=1e-5, l2_reg_embedding=1e-5,
+	def __init__(self, this_model, linear_feature_columns, dnn_feature_columns, l2_reg_linear=1e-5, l2_reg_embedding=1e-5,
 				init_std=0.0001, seed=1024, task='binary', device='cpu', gpus=None):
 
 		super(BaseModel, self).__init__()
 		torch.manual_seed(seed)
 		self.dnn_feature_columns = dnn_feature_columns
-
+		self.this_model = this_model
 		self.reg_loss = torch.zeros((1,), device=device)
 		self.aux_loss = torch.zeros((1,), device=device)
 		self.device = device
@@ -228,76 +229,88 @@ class BaseModel(nn.Module) :
 		# Train
 		print("Train on {0} samples, validate on {1} samples, {2} steps per epoch".format(
 			len(train_tensor_data), len(val_y), steps_per_epoch))
-		for epoch in range(initial_epoch, epochs):
-			callbacks.on_epoch_begin(epoch)
-			epoch_logs = {}
-			start_time = time.time()
-			loss_epoch = 0
-			total_loss_epoch = 0
-			train_result = {}
-			try:
-				with tqdm(enumerate(train_loader), disable=verbose != 1) as t:
-					for _, (x_train, y_train) in t:
-						x = x_train.to(self.device).float()
-						y = y_train.to(self.device).float()
+		
+		print ("----------------", self.this_model, "----------------")
+		with alive_bar (epochs) as bar :
+			for epoch in range(initial_epoch, epochs):
+				callbacks.on_epoch_begin(epoch)
+				epoch_logs = {}
+				start_time = time.time()
+				loss_epoch = 0
+				total_loss_epoch = 0
+				train_result = {}
+				try:
+					with tqdm(enumerate(train_loader), disable=verbose != 1) as t:
+						for _, (x_train, y_train) in t:
+							x = x_train.to(self.device).float()
+							y = y_train.to(self.device).float()
 
-						y_pred = model(x).squeeze()
+							y_pred = model(x).squeeze()
 
-						optim.zero_grad()
-						loss = loss_func(y_pred, y.squeeze(), reduction='sum')
-						reg_loss = self.get_regularization_loss()
+							optim.zero_grad()
+							loss = loss_func(y_pred, y.squeeze(), reduction='sum')
+							reg_loss = self.get_regularization_loss()
 
-						total_loss = loss + reg_loss + self.aux_loss
+							total_loss = loss + reg_loss + self.aux_loss
 
-						loss_epoch += loss.item()
-						total_loss_epoch += total_loss.item()
-						total_loss.backward()
-						optim.step()
+							loss_epoch += loss.item()
+							total_loss_epoch += total_loss.item()
+							total_loss.backward()
+							optim.step()
 
-						if verbose > 0:
-							for name, metric_fun in self.metrics.items():
-								if name not in train_result:
-									train_result[name] = []
-								train_result[name].append(metric_fun(
-									y.cpu().data.numpy(), y_pred.cpu().data.numpy().astype("float64")))
+							if verbose > 0:
+								for name, metric_fun in self.metrics.items():
+									if name not in train_result:
+										train_result[name] = []
+									train_result[name].append(metric_fun(
+										y.cpu().data.numpy(), y_pred.cpu().data.numpy().astype("float64")))
 
 
-			except KeyboardInterrupt:
+				except KeyboardInterrupt:
+					t.close()
+					raise
 				t.close()
-				raise
-			t.close()
 
-			# Add epoch_logs
-			epoch_logs["loss"] = total_loss_epoch / sample_num
-			for name, result in train_result.items():
-				epoch_logs[name] = np.sum(result) / steps_per_epoch
-
-			if do_validation:
-				eval_result = self.evaluate(val_x, val_y, batch_size)
-				for name, result in eval_result.items():
-					epoch_logs["val_" + name] = result
-			# verbose
-			if verbose > 0:
-				epoch_time = int(time.time() - start_time)
-				print('Epoch {0}/{1}'.format(epoch + 1, epochs))
-
-				eval_str = "{0}s - loss: {1: .4f}".format(
-					epoch_time, epoch_logs["loss"])
-
-				for name in self.metrics:
-					eval_str += " - " + name + \
-								": {0: .4f}".format(epoch_logs[name])
+				# Add epoch_logs
+				epoch_logs["loss"] = total_loss_epoch / sample_num
+				for name, result in train_result.items():
+					epoch_logs[name] = np.sum(result) / steps_per_epoch
 
 				if do_validation:
-					for name in self.metrics:
-						eval_str += " - " + "val_" + name + \
-									": {0: .4f}".format(epoch_logs["val_" + name])
-				print(eval_str)
-			callbacks.on_epoch_end(epoch, epoch_logs)
-			if self.stop_training:
-				break
+					eval_result = self.evaluate(val_x, val_y, batch_size)
+					for name, result in eval_result.items():
+						epoch_logs["val_" + name] = result
+				
+				
+				# verbose
+				if verbose > 0:
+					pass
+					# epoch_time = int(time.time() - start_time)
+					# print('Epoch {0}/{1}'.format(epoch + 1, epochs))
+
+					# eval_str = "{0}s - loss: {1: .4f}".format(
+					# 	epoch_time, epoch_logs["loss"])
+
+					# for name in self.metrics:
+					# 	eval_str += " - " + name + \
+					# 				": {0: .4f}".format(epoch_logs[name])
+
+					# if do_validation:
+					# 	for name in self.metrics:
+					# 		eval_str += " - " + "val_" + name + \
+					# 					": {0: .4f}".format(epoch_logs["val_" + name])
+					# print(eval_str)
+				# callbacks.on_epoch_end(epoch, epoch_logs)
+				if self.stop_training:
+					break
+
+				bar ()
 
 		callbacks.on_train_end()
+		# with alive_bar (epochs) as bar :
+		# 	for epoch in range (epochs) :
+		# 		bar()
+
 
 		return self.history
 

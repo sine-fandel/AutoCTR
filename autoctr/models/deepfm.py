@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 """
 Author:
-	Weichen Shen,weichenswc@163.com
+	Zhengxin Fang, 358746595@qq.com
 Reference:
 	[1] Guo H, Tang R, Ye Y, et al. Deepfm: a factorization-machine based neural network for ctr prediction[J]. arXiv preprint arXiv:1703.04247, 2017.(https://arxiv.org/abs/1703.04247)
 """
@@ -42,7 +42,7 @@ class DeepFM(BaseModel):
 				dnn_dropout=0,
 				dnn_activation='relu', dnn_use_bn=False, task='binary', device='cpu', gpus=None):
 
-		super(DeepFM, self).__init__(linear_feature_columns, dnn_feature_columns, l2_reg_linear=l2_reg_linear,
+		super(DeepFM, self).__init__("DeepFM", linear_feature_columns, dnn_feature_columns, l2_reg_linear=l2_reg_linear,
 									l2_reg_embedding=l2_reg_embedding, init_std=init_std, seed=seed, task=task,
 									device=device, gpus=gpus)
 
