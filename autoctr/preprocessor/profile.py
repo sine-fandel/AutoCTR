@@ -78,7 +78,11 @@ class Profiling(object):
 		return pd.value_counts (self.columns_stats.loc['types'])
 
 	def summary (self):
-		return pd.concat([self.df.describe(), self._get_stats (self.outlier, self.correlation)], sort=True)[self.df.columns]
+		data_profile = pd.concat([self.df.describe(), self._get_stats (self.outlier, self.correlation)], sort=True)[self.df.columns]
+		print ("************************************ The Profile of the Dataset ************************************")
+		print (data_profile)
+
+		return data_profile
 
 	@staticmethod
 	def _number_format(x):

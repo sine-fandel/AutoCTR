@@ -25,19 +25,19 @@ class Input (object) :
 	def preprocessing (self, outlier="z_score", correlation="pearson", impute_method="knn") :
 		profile = Profiling (self.data, outlier=outlier, correlation=correlation)
 		impute = Impute (self.data)
+		data_profile = profile.summary ()
 
-		print ("************************************ The Profile of the Dataset ************************************")
-		types_dict = profile.summary ().loc['types'].to_dict ()
-		print (profile.summary ())
+		types_dict = data_profile.loc['types'].to_dict ()
+
 		
-		feature_names = profile.summary ().columns.values
+		feature_names = data_profile.columns.values
 		feature_names_temp = list (feature_names)
 		feature_names = np.delete (feature_names, feature_names_temp.index (self.target))
 
 		if impute_method == 'knn' :
 			self.data = impute.KnnImputation (n_neighbors=2)
 		elif impute_method == 'simple' :
-			self.data = impute,SimpleImputation ()
+			self.data = impute.SimpleImputation ()
 		elif impute_method == 'iterative' :
 			self.data = impute.IterativeImputation ()
 		elif impute_method == 'forest' :
