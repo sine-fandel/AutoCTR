@@ -13,7 +13,7 @@ class AutoCTR :
 	def __init__ (self, data_path, target, seq=",") :
 		self.data_path = data_path
 		self.target = target
-		self.model_list = [DeepFM, AutoInt]
+		self.model_list = [DeepFM, AutoInt, AFN]
 		self.seq = seq
 		self.input_list = []
 
@@ -21,7 +21,7 @@ class AutoCTR :
 		profiling = Input (data_path=self.data_path, sep=self.seq)
 		self.input_list = profiling.preprocessing (impute_method='iterative')
 
-	def run (self) :
+	def run (self, batch_size=32, epochs=100, verbose=2, validation_split=0.8) :
 		train = self.input_list[0]
 		test = self.input_list[1]
 		train_model_input = self.input_list[2]
@@ -32,7 +32,7 @@ class AutoCTR :
 		for Model in self.model_list :
 			model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device='cpu')
 			model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
-			model.fit (train_model_input, train[self.target].values, batch_size=32, epochs=100, verbose=2, validation_split=0.8)
+			model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, validation_split=validation_split)
 			pred_ans = model.predict (test_model_input, 256)
 
 			print ("test AUC:", round (roc_auc_score(test[self.target].values, pred_ans), 4))
