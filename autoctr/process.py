@@ -1,7 +1,7 @@
 from .preprocessor.inputs import Input
 import pandas as pd
 from .models import *
-from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 
 class AutoCTR :
 	"""The whole process of recommender
@@ -29,24 +29,41 @@ class AutoCTR :
 		linear_feature_columns = self.input_list[4]
 		dnn_feature_columns = self.input_list[5]
 
+		if train[self.target].nunique () > 2:
+			metrics = 0			# MSE
+		else :
+			metrics = 1			# AUC
+
 		for Model in self.model_list :
 			print("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
 			if Model.__name__ != "PNN" :
-
 				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device='cpu')
-				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
+				if metrics == 1 :
+					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
+				else :
+					model.compile ("adam", "mse", metrics=["mse"], )
 				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose)
 				pred_ans = model.predict (test_model_input, 256)
 
-				print ("Validation Accuracy: ", round (roc_auc_score(test[self.target].values, pred_ans), 4))
+				if metrics == 1 :
+					print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
+				else :
+					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
+
 			
 			else :
 				model = Model (dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device='cpu')
-				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
+				if metrics == 1 :
+					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
+				else :
+					model.compile ("adam", "mse", metrics=["mse"], )
 				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose)
 				pred_ans = model.predict (test_model_input, 256)
 
-				print ("Validation Accuracy: ", round (roc_auc_score(test[self.target].values, pred_ans), 4))
+				if metrics == 1 :
+					print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
+				else :
+					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 
 
 	
