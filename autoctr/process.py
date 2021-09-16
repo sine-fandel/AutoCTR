@@ -72,5 +72,5 @@ class AutoCTR :
 				else :
 					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 
-				torch.save (model.state_dict (), save_path + Model.__name__ + ".pkl") 
+				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
 	
