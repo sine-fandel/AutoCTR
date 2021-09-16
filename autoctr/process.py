@@ -39,10 +39,18 @@ class AutoCTR :
 		else :
 			metrics = 1			# AUC
 
+		use_cuda = True
+		if use_cuda and torch.cuda.is_available () :
+			print ('cuda ready...')
+			device = 'cuda:0'
+		else :
+			print ('using cpu...')
+			device = 'cpu'
+
 		for Model in self.model_list :
 			print("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
 			if Model.__name__ != "PNN" :
-				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device='cpu')
+				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device=device)
 				if metrics == 1 :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
 				else :
@@ -59,7 +67,7 @@ class AutoCTR :
 
 			
 			else :
-				model = Model (dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device='cpu')
+				model = Model (dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device=device)
 				if metrics == 1 :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
 				else :
