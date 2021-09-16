@@ -2,6 +2,8 @@ from .preprocessor.inputs import Input
 import pandas as pd
 from .models import *
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
+import torch
+import os
 
 class AutoCTR :
 	"""The whole process of recommender
@@ -21,7 +23,10 @@ class AutoCTR :
 		profiling = Input (data_path=self.data_path, sep=self.sep, target=self.target, test_size=test_size)
 		self.input_list = profiling.preprocessing (impute_method='iterative')
 
-	def run (self, batch_size=32, epochs=100, verbose=2) :
+	def run (self, batch_size=32, epochs=100, verbose=2, save_path="./PKL/") :
+		if not os.path.exists (save_path) :
+			os.makedirs (save_path)
+
 		train = self.input_list[0]
 		test = self.input_list[1]
 		train_model_input = self.input_list[2]
@@ -50,6 +55,8 @@ class AutoCTR :
 				else :
 					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 
+				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
+
 			
 			else :
 				model = Model (dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device='cpu')
@@ -65,5 +72,5 @@ class AutoCTR :
 				else :
 					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 
-
+				torch.save (model.state_dict (), save_path + Model.__name__ + ".pkl") 
 	
