@@ -23,7 +23,7 @@ class AutoCTR :
 		profiling = Input (data_path=self.data_path, sep=self.sep, target=self.target, test_size=test_size)
 		self.input_list = profiling.preprocessing (impute_method='iterative')
 
-	def run (self, batch_size=32, epochs=100, verbose=2, save_path="./PKL/") :
+	def run (self, batch_size=32, epochs=100, verbose=2, save_path="./PKL/", earl_stop_patience=0) :
 		if not os.path.exists (save_path) :
 			os.makedirs (save_path)
 
@@ -47,7 +47,7 @@ class AutoCTR :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
 				else :
 					model.compile ("adam", "mse", metrics=["mse"], )
-				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose)
+				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience)
 				pred_ans = model.predict (test_model_input, 256)
 
 				if metrics == 1 :
@@ -64,7 +64,7 @@ class AutoCTR :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
 				else :
 					model.compile ("adam", "mse", metrics=["mse"], )
-				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose)
+				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience)
 				pred_ans = model.predict (test_model_input, 256)
 
 				if metrics == 1 :
