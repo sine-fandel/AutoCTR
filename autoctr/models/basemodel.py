@@ -30,6 +30,77 @@ from ..layers import PredictionLayer
 from ..layers import slice_arrays
 from ..callback import History
 
+# MIT License
+#
+# Copyright (c) 2018 Stefano Nardo https://gist.github.com/stefanonardo
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+class EarlyStopping(object):
+	def __init__(self, mode='min', min_delta=0, patience=10, percentage=False):
+		self.mode = mode
+		self.min_delta = min_delta
+		self.patience = patience
+		self.best = None
+		self.num_bad_epochs = 0
+		self.is_better = None
+		self._init_is_better(mode, min_delta, percentage)
+
+		if patience == 0:
+			self.is_better = lambda a, b: True
+			self.step = lambda a: False
+
+	def step(self, metrics):
+		if self.best is None:
+			self.best = metrics
+			return False
+
+		if torch.isnan(metrics):
+			return True
+
+		if self.is_better(metrics, self.best):
+			self.num_bad_epochs = 0
+			self.best = metrics
+		else:
+			self.num_bad_epochs += 1
+
+		if self.num_bad_epochs >= self.patience:
+			return True
+
+		return False
+
+	def _init_is_better(self, mode, min_delta, percentage):
+		if mode not in {'min', 'max'}:
+			raise ValueError('mode ' + mode + ' is unknown!')
+		if not percentage:
+			if mode == 'min':
+				self.is_better = lambda a, best: a < best - min_delta
+			if mode == 'max':
+				self.is_better = lambda a, best: a > best + min_delta
+		else:
+			if mode == 'min':
+				self.is_better = lambda a, best: a < best - (
+							best * min_delta / 100)
+			if mode == 'max':
+				self.is_better = lambda a, best: a > best + (
+							best * min_delta / 100)
+
 
 class Linear(nn.Module):
 	def __init__(self, feature_columns, feature_index, init_std=0.0001, device='cpu'):
@@ -134,7 +205,7 @@ class BaseModel(nn.Module) :
 		self._ckpt_saved_epoch = False  # used for EarlyStopping in tf1.14
 		self.history = History()
 
-	def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose=1, initial_epoch=0, validation_split=0.,
+	def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose=1, earl_stop_patience=0, initial_epoch=0, validation_split=0.,
 			validation_data=None, shuffle=True, callbacks=None):
 		"""
 
@@ -152,9 +223,9 @@ class BaseModel(nn.Module) :
 
 		:return: A `History` object. Its `History.history` attribute is a record of training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable).
 		"""
+		early_stopping = EarlyStopping (patience=earl_stop_patience)
 		if isinstance(x, dict):
 			x = [x[feature] for feature in self.feature_index]
-
 		do_validation = False
 		if validation_data:
 			do_validation = True
@@ -218,11 +289,11 @@ class BaseModel(nn.Module) :
 
 		# configure callbacks
 		callbacks = (callbacks or []) + [self.history]  # add history callback
-		callbacks = CallbackList(callbacks)
-		callbacks.set_model(self)
-		callbacks.on_train_begin()
-		callbacks.set_model(self)
-		if not hasattr(callbacks, 'model'):  # for tf1.4
+		callbacks = CallbackList (callbacks)
+		callbacks.set_model (self)
+		callbacks.on_train_begin ()
+		callbacks.set_model (self)
+		if not hasattr (callbacks, 'model'):  # for tf1.4
 			callbacks.__setattr__('model', self)
 		callbacks.model.stop_training = False
 
@@ -240,24 +311,25 @@ class BaseModel(nn.Module) :
 				total_loss_epoch = 0
 				train_result = {}
 				try:
-					with tqdm(enumerate(train_loader), disable=verbose != 1) as t:
+					with tqdm (enumerate (train_loader), disable=verbose != 1) as t:
 						for _, (x_train, y_train) in t:
-							x = x_train.to(self.device).float()
-							y = y_train.to(self.device).float()
+							x = x_train.to (self.device).float ()
+							y = y_train.to (self.device).float ()
 
-							y_pred = model(x).squeeze()
+							y_pred = model (x).squeeze ()
 
-							optim.zero_grad()
-							loss = loss_func(y_pred, y.squeeze(), reduction='sum')
-							reg_loss = self.get_regularization_loss()
+							optim.zero_grad ()
+							loss = loss_func (y_pred, y.squeeze (), reduction='sum')
+								
+							reg_loss = self.get_regularization_loss ()
 
 							total_loss = loss + reg_loss + self.aux_loss
 
-							loss_epoch += loss.item()
-							total_loss_epoch += total_loss.item()
-							total_loss.backward()
-							optim.step()
-
+							loss_epoch += loss.item ()
+							total_loss_epoch += total_loss.item ()
+							total_loss.backward ()
+							
+							optim.step ()
 							if verbose > 0:
 								for name, metric_fun in self.metrics.items():
 									if name not in train_result:
@@ -270,6 +342,11 @@ class BaseModel(nn.Module) :
 					t.close()
 					raise
 				t.close()
+				# print (total_loss)
+				if earl_stop_patience :
+					if early_stopping.step (total_loss) :
+						print ("Early Stopping")
+						break
 
 				# Add epoch_logs
 				epoch_logs["loss"] = total_loss_epoch / sample_num
@@ -284,33 +361,28 @@ class BaseModel(nn.Module) :
 				
 				# verbose
 				if verbose > 0:
-					pass
-					# epoch_time = int(time.time() - start_time)
+					epoch_time = int(time.time() - start_time)
 					# print('Epoch {0}/{1}'.format(epoch + 1, epochs))
 
-					# eval_str = "{0}s - loss: {1: .4f}".format(
-					# 	epoch_time, epoch_logs["loss"])
+					eval_str = "{0}s - loss: {1: .4f}".format(
+						epoch_time, epoch_logs["loss"])
 
-					# for name in self.metrics:
-					# 	eval_str += " - " + name + \
-					# 				": {0: .4f}".format(epoch_logs[name])
+					for name in self.metrics:
+						eval_str += " - " + name + \
+									": {0: .4f}".format (epoch_logs[name])
 
-					# if do_validation:
-					# 	for name in self.metrics:
-					# 		eval_str += " - " + "val_" + name + \
-					# 					": {0: .4f}".format(epoch_logs["val_" + name])
+					if do_validation:
+						for name in self.metrics:
+							eval_str += " - " + "val_" + name + \
+										": {0: .4f}".format(epoch_logs["val_" + name])
 					# print(eval_str)
-				# callbacks.on_epoch_end(epoch, epoch_logs)
+				callbacks.on_epoch_end (epoch, epoch_logs)
 				if self.stop_training:
 					break
 
 				bar ()
 
 		callbacks.on_train_end()
-		# with alive_bar (epochs) as bar :
-		# 	for epoch in range (epochs) :
-		# 		bar()
-
 
 		return self.history
 
@@ -446,8 +518,8 @@ class BaseModel(nn.Module) :
 		:param metrics: List of metrics to be evaluated by the model during training and testing. Typically you will use `metrics=['accuracy']`.
 		"""
 		self.metrics_names = ["loss"]
-		self.optim = self._get_optim(optimizer)
-		self.loss_func = self._get_loss_func(loss)
+		self.optim = self._get_optim (optimizer)
+		self.loss_func = self._get_loss_func (loss)
 
 		self.metrics = self._get_metrics(metrics)
 
