@@ -7,7 +7,6 @@ Author:
 The extrance of AutoCTR package.
 
 """
-from .preprocessor.inputs import Input
 from .preprocessor.profile import Profiling
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
