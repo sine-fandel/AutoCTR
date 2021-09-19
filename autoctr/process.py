@@ -170,3 +170,36 @@ class AutoCTR :
 
 				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
 	
+	def _get_model (self, models=[]) :
+		"""Get models
+
+		Models list: [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, DCNMix, ONN, WDL]
+		"""
+		model_list = []
+		for model in models :
+			if model == "DeepFM" :
+				model_list.append (DeepFM)
+			elif model == "xDeepFM" :
+				model_list.append (xDeepFM)
+			elif model == "AFN" :
+				model_list.append (AFN)
+			elif model == "NFM" :
+				model_list.append (NFM)
+			elif model == "IFM" :
+				model_list.append (IFM)
+			elif model == "DIFM" :
+				model_list.append (DIFM)
+			elif model == "AutoInt" :
+				model_list.append (AutoInt)
+			elif model == "PNN" :
+				model_list.append (PNN)
+			elif model == "DCN" :
+				model_list.append (DCN)
+			elif model == "DCNMix" :
+				model_list.append (DCNMix)
+			elif model == "ONN" :
+				model_list.append (ONN)
+			elif model == "WDL" :
+				model_list.append (WDL)
+
+		return model_list
