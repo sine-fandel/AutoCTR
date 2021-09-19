@@ -102,6 +102,8 @@ class AutoCTR :
 
 			print ("Have converted data to training format...")
 
+			return self.input_list
+
 		except Exception as e :
 			print (e)
 			
