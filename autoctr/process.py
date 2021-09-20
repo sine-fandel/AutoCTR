@@ -11,6 +11,7 @@ from .preprocessor.profile import Profiling
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
 from .models import *
+from .optimizer import RandomSearch
 
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from sklearn.model_selection import train_test_split
@@ -140,7 +141,7 @@ class AutoCTR :
 			if Model.__name__ != "PNN" :
 				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device=device)
 				if metrics == 1 :
-					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
+					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
 				else :
 					model.compile ("adam", "mse", metrics=["mse"], )
 				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience)
@@ -170,6 +171,36 @@ class AutoCTR :
 
 				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
 	
+	def search (self, model="DeepFM", tuner="random", max_evals=10, epochs=100) :
+		"""Search the best hyperparameters for model
+		"""
+		if model == "DeepFM" :
+			if tuner == "random" :
+				hp_grid = self._get_hp_grid (model)
+				random_search = RandomSearch (Model=DeepFM, linear_feature_columns=self.input_list[4],
+											dnn_feature_columns=self.input_list[5], task="binary", 
+											device="cpu", max_evals=max_evals, hp_grid=hp_grid)
+
+				random_search.search (self.input_list[2], self.input_list[0][self.target].values, 
+									self.input_list[3], self.input_list[1][self.target].values, epochs=epochs)
+
+
+	def _get_hp_grid (self, model) :
+		"""Get hyperparameters of each models
+		"""
+		hp_grid = {}
+		if model == "DeepFM" :
+			hp_grid = {
+				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.001, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+			}
+
+		return hp_grid
+
 	def _get_model (self, models=[]) :
 		"""Get models
 
