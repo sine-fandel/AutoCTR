@@ -171,13 +171,14 @@ class AutoCTR :
 
 				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
 	
-	def search (self, model="DeepFM", tuner="random", max_evals=10, epochs=100) :
+	def search (self, model_list=["DeepFM"], tuner="random", max_evals=10, epochs=100) :
 		"""Search the best hyperparameters for model
 		"""
-		if model == "DeepFM" :
+		for model_tune in model_list :
 			if tuner == "random" :
-				hp_grid = self._get_hp_grid (model)
-				random_search = RandomSearch (Model=DeepFM, linear_feature_columns=self.input_list[4],
+				print ("Tuning the %s model by %s..." % (model_tune, tuner))
+				hp_grid = self._get_hp_grid (model_tune)
+				random_search = RandomSearch (model_name=model_tune, linear_feature_columns=self.input_list[4],
 											dnn_feature_columns=self.input_list[5], task="binary", 
 											device="cpu", max_evals=max_evals, hp_grid=hp_grid)
 
@@ -189,15 +190,86 @@ class AutoCTR :
 		"""Get hyperparameters of each models
 		"""
 		hp_grid = {}
-		if model == "DeepFM" :
+		if model == "DeepFM" or model == "IFM" or model == "DIFM" or model == "ONN":
 			hp_grid = {
 				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
 				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
 				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
-				"l2_reg_dnn": np.array ([0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
 				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
 				"dnn_dropout": np.arange (0, 1, 0.1),
 			}
+		elif model == "xDeepFM" :
+			hp_grid = {
+				"cin_layer_size": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"l2_reg_cin": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+			}
+		elif model == "NFM" :
+			hp_grid = {
+				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+				"bi_dropout": np.arange (0, 1, 0.1),
+			}
+		elif model == "PNN" :
+			hp_grid = {
+				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+			}
+		elif model == "DCN" :
+			hp_grid = {
+				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_cross": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+			}
+		elif model == "DCNMix" :
+			hp_grid = {
+				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_cross": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+				"low_rank": np.array ([4, 16, 32, 64, 128]),
+				"num_experts": np.array ([4, 8, 16, 32])
+			}
+		elif model == "AFN" :
+			hp_grid = {
+				"ltl_hidden_size": np.array ([4, 16, 32, 64, 128, 256, 1024, 2048]),
+				"afn_dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+			}
+		elif model == "AutoInt" :
+			hp_grid = {
+				"att_layer_num": np.array ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+				"att_head_num": np.array ([2]),
+				"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+				"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+				"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+				"dnn_dropout": np.arange (0, 1, 0.1),
+			}
+
 
 		return hp_grid
 
