@@ -206,7 +206,7 @@ class BaseModel(nn.Module) :
 		self.history = History()
 
 	def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose=1, earl_stop_patience=0, initial_epoch=0, validation_split=0.,
-			validation_data=None, shuffle=True, callbacks=None):
+			validation_data=None, shuffle=True, callbacks=None, if_tune=0):
 		"""
 
 		:param x: Numpy array of training data (if the model has a single input), or list of Numpy arrays (if the model has multiple inputs).If input layers in the model are named, you can also pass a
@@ -220,6 +220,7 @@ class BaseModel(nn.Module) :
 		:param validation_data: tuple `(x_val, y_val)` or tuple `(x_val, y_val, val_sample_weights)` on which to evaluate the loss and any model metrics at the end of each epoch. The model will not be trained on this data. `validation_data` will override `validation_split`.
 		:param shuffle: Boolean. Whether to shuffle the order of the batches at the beginning of each epoch.
 		:param callbacks: List of `deepctr_torch.callbacks.Callback` instances. List of callbacks to apply during training and validation (if ). See [callbacks](https://tensorflow.google.cn/api_docs/python/tf/keras/callbacks). Now available: `EarlyStopping` , `ModelCheckpoint`
+		:param if_tune: 0 - training model; 1 - tuning the hyperparameters.
 
 		:return: A `History` object. Its `History.history` attribute is a record of training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable).
 		"""
@@ -301,8 +302,89 @@ class BaseModel(nn.Module) :
 		# print("Train on {0} samples, validate on {1} samples, {2} steps per epoch".format(
 		# 	len(train_tensor_data), len(val_y), steps_per_epoch))
 		
-		print ("----------------", self.this_model, "----------------")
-		with alive_bar (epochs) as bar :
+		if not if_tune :
+			print ("----------------", self.this_model, "----------------")
+			with alive_bar (epochs) as bar :
+				for epoch in range(initial_epoch, epochs):
+					callbacks.on_epoch_begin(epoch)
+					epoch_logs = {}
+					start_time = time.time()
+					loss_epoch = 0
+					total_loss_epoch = 0
+					train_result = {}
+					try:
+						with tqdm (enumerate (train_loader), disable=verbose != 1) as t:
+							for _, (x_train, y_train) in t:
+								x = x_train.to (self.device).float ()
+								y = y_train.to (self.device).float ()
+
+								y_pred = model (x).squeeze ()
+
+								optim.zero_grad ()
+								loss = loss_func (y_pred, y.squeeze (), reduction='sum')
+									
+								reg_loss = self.get_regularization_loss ()
+
+								total_loss = loss + reg_loss + self.aux_loss
+
+								loss_epoch += loss.item ()
+								total_loss_epoch += total_loss.item ()
+								total_loss.backward ()
+								
+								optim.step ()
+								if verbose > 0:
+									for name, metric_fun in self.metrics.items():
+										if name not in train_result:
+											train_result[name] = []
+										train_result[name].append(metric_fun(
+											y.cpu().data.numpy(), y_pred.cpu().data.numpy().astype("float64")))
+
+
+					except KeyboardInterrupt:
+						t.close()
+						raise
+					t.close()
+					# print (total_loss)
+					if earl_stop_patience :
+						if early_stopping.step (total_loss) :
+							print ("Early Stopping")
+							break
+
+					# Add epoch_logs
+					epoch_logs["loss"] = total_loss_epoch / sample_num
+					for name, result in train_result.items():
+						epoch_logs[name] = np.sum(result) / steps_per_epoch
+
+					if do_validation:
+						eval_result = self.evaluate(val_x, val_y, batch_size)
+						for name, result in eval_result.items():
+							epoch_logs["val_" + name] = result
+					
+					
+					# verbose
+					if verbose > 0:
+						epoch_time = int(time.time() - start_time)
+						# print('Epoch {0}/{1}'.format(epoch + 1, epochs))
+
+						eval_str = "{0}s - loss: {1: .4f}".format(
+							epoch_time, epoch_logs["loss"])
+
+						for name in self.metrics:
+							eval_str += " - " + name + \
+										": {0: .4f}".format (epoch_logs[name])
+
+						if do_validation:
+							for name in self.metrics:
+								eval_str += " - " + "val_" + name + \
+											": {0: .4f}".format(epoch_logs["val_" + name])
+						# print(eval_str)
+					callbacks.on_epoch_end (epoch, epoch_logs)
+					if self.stop_training:
+						break
+
+					bar ()
+
+		else :
 			for epoch in range(initial_epoch, epochs):
 				callbacks.on_epoch_begin(epoch)
 				epoch_logs = {}
@@ -380,7 +462,6 @@ class BaseModel(nn.Module) :
 				if self.stop_training:
 					break
 
-				bar ()
 
 		callbacks.on_train_end()
 
@@ -555,7 +636,7 @@ class BaseModel(nn.Module) :
 
 	def _log_loss(self, y_true, y_pred, eps=1e-7, normalize=True, sample_weight=None, labels=None):
 		# change eps to improve calculation accuracy
-		return log_loss(y_true,
+		return log_loss (y_true,
 						y_pred,
 						eps,
 						normalize,
