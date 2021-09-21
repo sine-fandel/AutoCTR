@@ -16,6 +16,92 @@ from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 
 from ..models import *
 
+def _get_hp_grid (model) :
+	"""Get hyperparameters of each models
+	"""
+	hp_grid = {}
+	if model == "DeepFM" or model == "IFM" or model == "DIFM" or model == "ONN":
+		hp_grid = {
+			"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+		}
+	elif model == "xDeepFM" :
+		hp_grid = {
+			"cin_layer_size": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"l2_reg_cin": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+		}
+	elif model == "NFM" :
+		hp_grid = {
+			"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+			"bi_dropout": np.arange (0, 1, 0.1),
+		}
+	elif model == "PNN" :
+		hp_grid = {
+			"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+		}
+	elif model == "DCN" :
+		hp_grid = {
+			"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_cross": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+		}
+	elif model == "DCNMix" :
+		hp_grid = {
+			"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_cross": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+			"low_rank": np.array ([4, 16, 32, 64, 128]),
+			"num_experts": np.array ([4, 8, 16, 32])
+		}
+	elif model == "AFN" :
+		hp_grid = {
+			"ltl_hidden_size": np.array ([4, 16, 32, 64, 128, 256, 1024, 2048]),
+			"afn_dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_linear": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+		}
+	elif model == "AutoInt" :
+		hp_grid = {
+			"att_layer_num": np.array ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+			"att_head_num": np.array ([2]),
+			"dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+			"l2_reg_embedding": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"l2_reg_dnn": np.array ([0.0, 0.01, 0.1]),
+			"init_std": np.array ([0.00001, 0.0001, 0.001, 0.01, 0.1]),
+			"dnn_dropout": np.arange (0, 1, 0.1),
+		}
+
+
+	return hp_grid
 
 class RandomSearch () :
 	"""Random search for hp tuning
@@ -23,14 +109,14 @@ class RandomSearch () :
 	:param models: Model list of tuning
 	:param max_evals: The max rounds of tuning
 	"""
-	def __init__ (self, model_name, hp_grid, linear_feature_columns, dnn_feature_columns, task="binary", device="cpu", max_evals=10) :
+	def __init__ (self, model_name, linear_feature_columns, dnn_feature_columns, task="binary", device="cpu", max_evals=10) :
 		self.model_name = model_name
 		self.max_evals = max_evals
 		self.linear_feature_columns = linear_feature_columns
 		self.dnn_feature_columns = dnn_feature_columns
 		self.task = task
 		self.device = device
-		self.hp_grid = hp_grid
+		self.hp_grid = _get_hp_grid (model_name)
 
 	def search (self, train_model_input, train_y, test_model_input, test_y, epochs=100, verbose=2, earl_stop_patience=0) :
 		best_Score = 0
