@@ -35,6 +35,7 @@ class RandomSearch () :
 	def search (self, train_model_input, train_y, test_model_input, test_y, epochs=100, verbose=2, earl_stop_patience=0) :
 		best_Score = 0
 		best_param = {}
+		best_round = 0
 		with alive_bar (self.max_evals) as bar :
 			for i in range (self.max_evals) :
 				random_params = {k: random.sample (v.tolist (), 1)[0] if not isinstance (v, tuple) else (random.sample (v[0].tolist (), 1)[0], random.sample (v[1].tolist (), 1)[0]) for k, v in self.hp_grid.items ()}
@@ -100,13 +101,14 @@ class RandomSearch () :
 
 				cur_score = roc_auc_score (test_y, pred_ans)
 				if cur_score > best_Score :
+					best_round = i
 					best_Score =cur_score
 					best_param = random_params
 
 				bar ()
 				bar.text ("#%d  Accuracy: %.4f" % (i + 1, cur_score))
 
-		print ("Best Accuracy: %.4f" % (best_Score))
+		print ("Best Accuracy: %.4f in %d" % (best_Score, best_round))
 		print ("Best Hyperparameters: ", (best_param))
 
 
