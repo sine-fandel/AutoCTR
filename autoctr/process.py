@@ -11,11 +11,12 @@ from .preprocessor.profile import Profiling
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
 from .models import *
-from .optimizer import RandomSearch
+from .optimizer import RandomSearch, BayesianOptimization
 
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
+from alive_progress import alive_bar
 
 import torch
 import os
@@ -171,19 +172,23 @@ class AutoCTR :
 
 				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
 	
-	def search (self, model_list=["DeepFM"], tuner="random", max_evals=10, epochs=100) :
+	def search (self, model_list=["DeepFM"], tuner="bayesian", max_evals=10, epochs=100) :
 		"""Search the best hyperparameters for model
 		"""
 		for model_tune in model_list :
 			if tuner == "random" :
 				print ("Tuning the %s model by %s..." % (model_tune, tuner))
-				# hp_grid = self._get_hp_grid (model_tune)
 				random_search = RandomSearch (model_name=model_tune, linear_feature_columns=self.input_list[4],
 											dnn_feature_columns=self.input_list[5], task="binary", 
 											device="cpu", max_evals=max_evals)
 
 				random_search.search (self.input_list[2], self.input_list[0][self.target].values, 
 									self.input_list[3], self.input_list[1][self.target].values, epochs=epochs)
+			if tuner == "bayesian" :
+				print ("Tuning the %s model by %s..." % (model_tune, tuner))
+				bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, model_name=model_tune, epochs=epochs, max_evals=max_evals)	
+				bayesian_search.maximize ()
+
 
 	def _get_model (self, models=[]) :
 		"""Get models
