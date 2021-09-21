@@ -106,7 +106,7 @@ class RandomSearch () :
 					best_param = random_params
 
 				bar ()
-				bar.text ("#%d  Accuracy: %.4f" % (i + 1, cur_score))
+				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (i + 1, cur_score, best_Score))
 
 		print ("Best Accuracy: %.4f in %d" % (best_Score, best_round))
 		print ("Best Hyperparameters: ", (best_param))
