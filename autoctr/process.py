@@ -22,6 +22,7 @@ import torch
 import os
 import pandas as pd
 import numpy as np
+import json
 
 class AutoCTR :
 	"""The whole process of recommender
@@ -172,22 +173,37 @@ class AutoCTR :
 
 				torch.save (model.state_dict (), save_path + Model.__name__ + "_epoach:" + str (epochs) + ".pkl") 
 	
-	def search (self, model_list=["DeepFM"], tuner="bayesian", max_evals=10, epochs=100) :
+	def search (self, model_list=["DeepFM"], tuner="bayesian", save_path="./PKL/", hp_path="./HP/", max_evals=10, epochs=100) :
 		"""Search the best hyperparameters for model
 		"""
+		save_path = save_path + tuner + "/"
+		hp_path = hp_path + tuner + "/"
+		if not os.path.exists (save_path) :
+			os.makedirs (save_path)
+		if not os.path.exists (hp_path) :
+			os.makedirs (hp_path)
 		for model_tune in model_list :
 			if tuner == "random" :
 				print ("Tuning the %s model by %s..." % (model_tune, tuner))
 				random_search = RandomSearch (model_name=model_tune, linear_feature_columns=self.input_list[4],
 											dnn_feature_columns=self.input_list[5], task="binary", 
-											device="cpu", max_evals=max_evals)
+											device="cpu", max_evals=max_evals, save_path=save_path)
 
-				random_search.search (self.input_list[2], self.input_list[0][self.target].values, 
-									self.input_list[3], self.input_list[1][self.target].values, epochs=epochs)
+				best_param = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
+													self.input_list[1][self.target].values, epochs=epochs)
+										
+				with open (hp_path + model_tune + ".json", "w") as f :
+					f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
+
+
 			if tuner == "bayesian" :
 				print ("Tuning the %s model by %s..." % (model_tune, tuner))
-				bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, model_name=model_tune, epochs=epochs, max_evals=max_evals)	
-				bayesian_search.maximize ()
+				bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, 
+														model_name=model_tune, epochs=epochs, max_evals=max_evals)	
+				best_param = bayesian_search.maximize ()
+
+				with open (hp_path + model_tune + ".json", "w") as f :
+					f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
 
 
 	def _get_model (self, models=[]) :

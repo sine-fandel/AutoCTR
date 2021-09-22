@@ -172,13 +172,13 @@ class BayesianOptimization (Observable) :
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
 							# "dnn_dropout": (0.01, 0.1),
-							"low_rank": (4, 128),
-							"num_experts": [4, 32],
+							# "low_rank": (4, 128),
+							# "num_experts": (4, 32),
 						}
 		elif self.model_name == "AFN" :
 			self.model = AFN
 			self.pbounds = {
-							"ltl_hidden_size": [4, 2048],
+							# "ltl_hidden_size": (4, 2048),
 							# "afn_dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
 							"l2_reg_linear": (0.00001, 1.0),
 							"l2_reg_embedding": (0.00001, 1.0),
@@ -302,7 +302,7 @@ class BayesianOptimization (Observable) :
 			self.subscribe(Events.OPTIMIZATION_STEP, _logger)
 			self.subscribe(Events.OPTIMIZATION_END, _logger)
 
-	def maximize(self, init_points=1, acq='ucb', kappa=2.576, kappa_decay=1, kappa_decay_delay=0, xi=0.0, **gp_params):
+	def maximize (self, init_points=1, acq='ucb', kappa=2.576, kappa_decay=1, kappa_decay_delay=0, xi=0.0, **gp_params) :
 		"""Mazimize your function"""
 		# self._prime_subscriptions ()
 		# self.dispatch (Events.OPTIMIZATION_START)
@@ -342,7 +342,8 @@ class BayesianOptimization (Observable) :
 				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (iteration + 1, round (self.res[-1]['target'], 4), round (best_score, 4)))
 
 		print ("Best Accuracy: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
-		print ("Best Hyperparameters: ", (best_param))
+		# print ("Best Hyperparameters: ", (best_param))
+		return best_param
 		
 
 	def set_bounds(self, new_bounds):

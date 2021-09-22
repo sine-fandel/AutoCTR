@@ -109,7 +109,7 @@ class RandomSearch () :
 	:param models: Model list of tuning
 	:param max_evals: The max rounds of tuning
 	"""
-	def __init__ (self, model_name, linear_feature_columns, dnn_feature_columns, task="binary", device="cpu", max_evals=10) :
+	def __init__ (self, model_name, linear_feature_columns, dnn_feature_columns, save_path, task="binary", device="cpu", max_evals=10) :
 		self.model_name = model_name
 		self.max_evals = max_evals
 		self.linear_feature_columns = linear_feature_columns
@@ -117,6 +117,7 @@ class RandomSearch () :
 		self.task = task
 		self.device = device
 		self.hp_grid = _get_hp_grid (model_name)
+		self.save_path = save_path
 
 	def search (self, train_model_input, train_y, test_model_input, test_y, epochs=100, verbose=2, earl_stop_patience=0) :
 		best_Score = 0
@@ -170,9 +171,11 @@ class RandomSearch () :
 
 				bar ()
 				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (i + 1, cur_score, best_Score))
+				torch.save (model.state_dict (), self.save_path + self.model_name + "_epoach:" + str (epochs) + ".pkl")
 
 		print ("Best Accuracy: %.4f in %d" % (best_Score, best_round))
-		print ("Best Hyperparameters: ", (best_param))
+		# print ("Best Hyperparameters: ", (best_param))
+		return best_param
 
 
 
