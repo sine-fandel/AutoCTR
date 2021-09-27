@@ -77,9 +77,14 @@ class BayesianOptimization (Observable) :
 	:param verbose: The level of verbosity.
 	:param bounds_transformer: If provided, the transformation is applied to the bounds.
 	"""
-	def __init__ (self, model_name, epochs, max_evals, inputs, random_state=None, verbose=2, bounds_transformer=None):
+	def __init__ (self, model_name, epochs, max_evals, inputs, task="binary", device="cpu", 
+				random_state=None, verbose=2, bounds_transformer=None, target="label", metrics="0"):
 		self.model_name = model_name
 		self.max_evals = max_evals
+		self.target = target
+		self.metrics = metrics
+		self.device = device
+		self.task = task
 		if self.model_name == "DeepFM" :
 			self.model = DeepFM
 			self.pbounds = {
@@ -205,7 +210,7 @@ class BayesianOptimization (Observable) :
 		# its domain, and a record of the evaluations we have done so far
 		self._space = TargetSpace (self.target_fun, self.pbounds, random_state)
 		# queue
-		self._queue = Queue()
+		self._queue = Queue ()
 
 		# Internal GP regressor
 		self._gp = GaussianProcessRegressor(
@@ -232,11 +237,20 @@ class BayesianOptimization (Observable) :
 		:param model: the model that needed to be optimizated
 		:param params_dict: the hyperparameters that needed to be optimizated
 		"""
-		model = self.model (self.inputs[4], self.inputs[5], **params_dict)
-		model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
-		model.fit (self.inputs[2], self.inputs[0]['label'].values, batch_size=32, epochs=self.epochs, verbose=2, earl_stop_patience=0, if_tune=1)
+		model = self.model (self.inputs[4], self.inputs[5], task=self.task, device=self.device, **params_dict)
+
+		if self.metrics == 1 :
+			model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
+		elif self.metrics == 0 :
+			model.compile ("adam", "mse", metrics=["mse"], )
+		
+		model.fit (self.inputs[2], self.inputs[0][self.target].values, batch_size=32, epochs=self.epochs, verbose=2, earl_stop_patience=0, if_tune=1)
 		pred_ans = model.predict (self.inputs[3], 256)
-		res = roc_auc_score (self.inputs[1]['label'].values, pred_ans)
+
+		if self.metrics == 1 :
+			res = roc_auc_score (self.inputs[1][self.target].values, pred_ans)
+		elif self.metrics == 0 :
+			res = -mean_squared_error (self.inputs[1][self.target].values, pred_ans)
 
 		return res
 
@@ -277,7 +291,7 @@ class BayesianOptimization (Observable) :
 			self._gp.fit(self._space.params, self._space.target)
 
 		# Finding argmax of the acquisition function.
-		suggestion = acq_max(
+		suggestion = acq_max (
 			ac=utility_function.utility,
 			gp=self._gp,
 			y_max=self._space.target.max(),
@@ -285,7 +299,7 @@ class BayesianOptimization (Observable) :
 			random_state=self._random_state
 		)
 
-		return self._space.array_to_params(suggestion)
+		return self._space.array_to_params (suggestion)
 
 	def _prime_queue(self, init_points):
 		"""Make sure there's something in the queue at the very beginning."""
@@ -315,7 +329,12 @@ class BayesianOptimization (Observable) :
 							kappa_decay=kappa_decay,
 							kappa_decay_delay=kappa_decay_delay)
 		iteration = 0
-		best_score = 0
+		
+		if self.metrics == 1 :
+			best_score = 0
+		elif self.metrics == 0 :
+			best_score = 9999
+			
 		best_param = {}
 		best_round = 0
 		with alive_bar (self.max_evals) as bar :
@@ -333,13 +352,17 @@ class BayesianOptimization (Observable) :
 					self.set_bounds(
 						self._bounds_transformer.transform(self._space))
 
-				if best_score < self.res[-1]['target'] :
+				if self.metrics == 1 and best_score < self.res[-1]['target'] :
 					best_score = self.res[-1]['target']
+					best_param = self.res[-1]['params']
+					best_round = iteration
+				elif self.metrics == 0 and best_score > -self.res[-1]['target'] :
+					best_score = -self.res[-1]['target']
 					best_param = self.res[-1]['params']
 					best_round = iteration
 
 				bar ()
-				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (iteration + 1, round (self.res[-1]['target'], 4), round (best_score, 4)))
+				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (iteration, round (-self.res[-1]['target'], 4), round (best_score, 4)))
 
 		print ("Best Accuracy: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
 		# print ("Best Hyperparameters: ", (best_param))

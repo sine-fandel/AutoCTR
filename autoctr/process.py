@@ -44,7 +44,7 @@ class AutoCTR :
 	def profiling (self, test_size=0.2, outlier="z_score", correlation="pearson") :
 		"""Get the data summary of the dataset.
 		"""
-		self.data_profile = Profiling (self.data, outlier=outlier, correlation=correlation).summary ()
+		self.data_profile = Profiling (self.data, outlier=outlier, correlation=correlation, target=self.target).summary ()
 		self.types_dict = self.data_profile.loc['types'].to_dict ()
 		self.tag = 1
 
@@ -85,15 +85,18 @@ class AutoCTR :
 
 			fixlen_feature_columns = []
 
-			for key, value in types_dict.items () :
-				if key != self.target :
-					if value == "categorical" :
-						lbe = LabelEncoder ()
-						self.data[key] = lbe.fit_transform (self.data[key])
-						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
+			lbe = LabelEncoder ()
+			self.data[key] = lbe.fit_transform (self.data[key])
+			fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
+			# for key, value in types_dict.items () :
+			# 	if key != self.target :
+			# 		if value == "categorical" :
+			# 			lbe = LabelEncoder ()
+			# 			self.data[key] = lbe.fit_transform (self.data[key])
+			# 			fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
 						
-					elif value == "numeric" :
-						fixlen_feature_columns.append (DenseFeat (key, 1, ))
+			# 		elif value == "numeric" :
+			# 			fixlen_feature_columns.append (DenseFeat (key, 1, ))
 			
 			train, test = train_test_split (self.data, test_size=test_size, random_state=2021)
 			self.input_list.append (train)
@@ -127,8 +130,12 @@ class AutoCTR :
 
 		if train[self.target].nunique () > 2:
 			metrics = 0			# MSE
+			task = "regression"
+			print ("TASK: ", task)
 		else :
 			metrics = 1			# AUC
+			task = "binary"
+			print ("TASK: ", task)
 
 		use_cuda = True
 		if use_cuda and torch.cuda.is_available () :
@@ -141,7 +148,7 @@ class AutoCTR :
 		for Model in self.model_list :
 			print("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
 			if Model.__name__ != "PNN" :
-				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device=device)
+				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task=task, l2_reg_embedding=1e-5, device=device)
 				if metrics == 1 :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
 				else :
@@ -158,7 +165,7 @@ class AutoCTR :
 
 			
 			else :
-				model = Model (dnn_feature_columns=dnn_feature_columns, task='binary', l2_reg_embedding=1e-5, device=device)
+				model = Model (dnn_feature_columns=dnn_feature_columns, task=task, l2_reg_embedding=1e-5, device=device)
 				if metrics == 1 :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
 				else :
@@ -178,6 +185,25 @@ class AutoCTR :
 		"""
 		save_path = save_path + tuner + "/"
 		hp_path = hp_path + tuner + "/"
+
+		train = self.input_list[0]
+		if train[self.target].nunique () > 2:
+			metrics = 0			# MSE
+			task = "regression"
+			print ("TASK: ", task)
+		else :
+			metrics = 1			# AUC
+			task = "binary"
+			print ("TASK: ", task)
+
+		use_cuda = True
+		if use_cuda and torch.cuda.is_available () :
+			print ('cuda ready...')
+			device = 'cuda:0'
+		else :
+			print ('using cpu...')
+			device = 'cpu'
+		
 		if not os.path.exists (save_path) :
 			os.makedirs (save_path)
 		if not os.path.exists (hp_path) :
@@ -198,8 +224,9 @@ class AutoCTR :
 
 			if tuner == "bayesian" :
 				print ("Tuning the %s model by %s..." % (model_tune, tuner))
-				bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, 
-														model_name=model_tune, epochs=epochs, max_evals=max_evals)	
+				bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=device,
+														model_name=model_tune, epochs=epochs, max_evals=max_evals, target=self.target, metrics=metrics,
+														task=task)	
 				best_param = bayesian_search.maximize ()
 
 				with open (hp_path + model_tune + ".json", "w") as f :

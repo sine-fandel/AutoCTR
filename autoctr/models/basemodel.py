@@ -376,13 +376,14 @@ class BaseModel(nn.Module) :
 						if do_validation:
 							for name in self.metrics:
 								eval_str += " - " + "val_" + name + \
-											": {0: .4f}".format(epoch_logs["val_" + name])
+											": {0: .4f}".format (epoch_logs["val_" + name])
 						# print(eval_str)
 					callbacks.on_epoch_end (epoch, epoch_logs)
 					if self.stop_training:
 						break
 
 					bar ()
+					bar.text ("#%d  SCORE: %.4f" % (epoch + 1, round (epoch_logs["loss"], 4)))
 
 		else :
 			for epoch in range(initial_epoch, epochs):

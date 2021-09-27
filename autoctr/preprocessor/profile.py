@@ -36,14 +36,14 @@ class Profiling(object):
 	TYPE_CONSTANT = 'constant'
 	TYPE_UNIQUE = 'unique'
 
-	def __init__(self, df, outlier='z_score', correlation='pearson', plot=False):
+	def __init__(self, df, target, outlier='z_score', correlation='pearson', plot=False):
 		self.df = df
 		self.length = len(df)
 		self.corr = df.corr()
 		self.plot = plot
 		self.outlier = outlier
 		self.correlation = correlation
-
+		self.target = target
 		
 	def __getitem__(self, column):
 		if isinstance(column, str) and self._clean_column(column):
@@ -78,7 +78,7 @@ class Profiling(object):
 		return pd.value_counts (self.columns_stats.loc['types'])
 
 	def summary (self):
-		data_profile = pd.concat([self.df.describe(), self._get_stats (self.outlier, self.correlation)], sort=True)[self.df.columns]
+		data_profile = pd.concat([self._get_stats (self.outlier, self.correlation)], sort=True)[self.df.columns]
 		print ("************************************ The Profile of the Dataset ************************************")
 		print (data_profile)
 
@@ -105,12 +105,10 @@ class Profiling(object):
 		counts.name = 'counts'
 		uniques = self._get_uniques()
 		missing = self._get_missing (counts)
-		skew = self._get_skew ()
-		kurt = self._get_kurt ()
 		outlier = self._get_outlier (outlier)
 
 		# stats = pd.concat([counts, uniques, missing, skew, kurt, correlation], axis=1, sort=True)
-		stats = pd.concat([counts, uniques, missing, skew, kurt, outlier], axis=1, sort=True)
+		stats = pd.concat([counts, uniques, missing, outlier], axis=1, sort=True)
 
 		# settings types
 		stats['types'] = ''
@@ -172,18 +170,16 @@ class Profiling(object):
 				self.df[c] = self.df[c].astype ('str')
 				self.df[c] = lbe.fit_transform (self.df[c])
 
-
-			
 			cor_result = self.df.corr (method=method)
 
-		return pd.Series (dict (cor_result[self.df.columns[-1]]), name='correlation')
+		return pd.Series (dict (cor_result[self.target]), name='correlation')
 
 
 	def CramerV (self, var1, var2) :
 		'''Cramer's V method
 		use cramer's V to calculate the correlation between two categorical variable
 		'''
-		crosstab =np.array (pd.crosstab(var1,var2, rownames=None, colnames=None)) # Cross table building
+		crosstab =np.array (pd.crosstab (var1, var2, rownames=None, colnames=None)) # Cross table building
 		stat = chi2_contingency (crosstab)[0] # Keeping of the test statistic of the Chi2 test
 		obs = np.sum (crosstab) # Number of observations
 		mini = min (crosstab.shape)-1 # Take the minimum value between the columns and the rows of the cross table
