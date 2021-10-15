@@ -17,6 +17,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.covariance import EllipticEnvelope
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn import svm
+from sklearn import preprocessing
 from collections import Counter
 
 class QoD (object) :
@@ -159,15 +160,89 @@ class QoD (object) :
 
 		return score
 
+	def _get_correlations (self, method="pearson") :
+		"""Get correlation between the data
+		"""
+		cat_col = []
+		for c in self.df.columns :
+			if self.df[c].dtypes == "object" :
+				cat_col.append (c)
+		
+		data_type = 2
+		column_types = self.df.dtypes.values
+		column_types = column_types == 'O'
+		for c in column_types :
+			if c and data_type == 2:
+				data_type = 0
+			elif not c and data_type == 0 :
+				data_type = -1
+			elif not c and data_type == 2 :
+				data_type = 1
+			elif c and data_type == 1 :
+				data_type = -1
 
-# qod = QoD ("/Users/apple/AutoCTR project/AutoCTR/autoctr/criteo_sample.txt", sep=",", label="label")
+		if data_type == 0 :
+			# data type is both categorical
+			label = preprocessing.LabelEncoder ()
+			data_encoded = pd.DataFrame ()
 
-# outlier_dict = qod._get_completeness ()
-# completeness = qod._get_outlier ()
-# duplicated = qod._get_duplicated ()
-# parity = qod._get_class_parity ()
+			for i in self.df.columns :
+				data_encoded[i] = label.fit_transform (self.df[i])
 
-# print (outlier_dict)
-# print (completeness)
-# print (duplicated)
-# print (parity)
+			rows= []
+			for var1 in data_encoded:
+				col = []
+				for var2 in data_encoded :
+					cramers = self.CramerV (data_encoded[var1], data_encoded[var2]) # Cramer's V test
+					col.append (round (cramers, 2)) # Keeping of the rounded value of the Cramer's V  
+				rows.append (col)
+			
+			cramers_results = np.array (rows)
+			cor_result = pd.DataFrame (cramers_results, columns = data_encoded.columns, index =data_encoded.columns)
+		
+		elif data_type == 1 :
+			# data type is both numerical
+			cor_result = self.df.corr (method=method)
+
+		elif data_type == -1 :
+			# data type is numerical and categorical
+			# label = preprocessing.LabelEncoder ()
+
+			for c in cat_col :
+				lbe = preprocessing.LabelEncoder()
+				self.df[c] = self.df[c].astype ('str')
+				self.df[c] = lbe.fit_transform (self.df[c])
+
+			cor_result = self.df.corr (method=method)
+
+		cor_result = np.abs (cor_result) > 0.5
+		high_cor_count = 0
+		for row in cor_result.values :
+			for column in row :
+				if column :
+					high_cor_count += 1
+
+		high_cor_count = (high_cor_count - cor_result.shape[0]) / 2
+
+		score = {}
+		score['correlation'] = (cor_result.shape[0] - high_cor_count) / cor_result.shape[0]
+
+		self.Plot (score, "Correlation Score")
+
+		return score
+
+
+# data = pd.read_csv ("/Users/apple/AutoCTR project/AutoCTR/autoctr/criteo_sample.txt", sep=",")
+# qod = QoD (data, target="label")
+
+
+# qod._get_correlations ()
+# # outlier_dict = qod._get_completeness ()
+# # completeness = qod._get_outlier ()
+# # duplicated = qod._get_duplicated ()
+# # parity = qod._get_class_parity ()
+
+# # print (outlier_dict)
+# # print (completeness)
+# # print (duplicated)
+# # print (parity)
