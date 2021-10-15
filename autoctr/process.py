@@ -10,6 +10,8 @@ The extrance of AutoCTR package.
 from .preprocessor.profile import Profiling
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
+from .preprocessor.quality import QoD
+
 from .models import *
 from .optimizer import RandomSearch, BayesianOptimization
 
@@ -40,6 +42,15 @@ class AutoCTR :
 		self.data_profile = None
 		self.types_dict = {}
 		self.tag = 0
+
+	def quality_checking (self) :
+		"""Checking the data quality
+		"""
+		qod = QoD (self.data, target=self.target)
+		qod._get_outlier ()
+		qod._get_completeness ()
+		qod._get_duplicated ()
+		qod._get_class_parity ()
 
 	def profiling (self, test_size=0.2, outlier="z_score", correlation="pearson") :
 		"""Get the data summary of the dataset.
