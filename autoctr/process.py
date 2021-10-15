@@ -51,6 +51,25 @@ class AutoCTR :
 		qod._get_completeness ()
 		qod._get_duplicated ()
 		qod._get_class_parity ()
+		qod._get_correlations ()
+
+	def data_cleaning (self, impute_method="knn") :
+		"""clean the data
+		"""
+		impute = Impute (self.data)
+		if impute_method == 'knn' :
+			self.data = impute.KnnImputation (n_neighbors=2)
+		elif impute_method == 'simple' :
+			self.data = impute.SimpleImputation ()
+		elif impute_method == 'iterative' :
+			self.data = impute.IterativeImputation ()
+		elif impute_method == 'forest' :
+			self.data = impute.RandomforestImputation ()
+		elif impute_method == 'mf' :
+			self.data = impute.MatrixFactorization ()
+
+		print ("Finish imputation by ", impute_method)
+
 
 	def profiling (self, test_size=0.2, outlier="z_score", correlation="pearson") :
 		"""Get the data summary of the dataset.
