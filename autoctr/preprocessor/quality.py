@@ -69,7 +69,7 @@ class QoD (object) :
 
 					temp += count
 					
-		score['Outlier Score'] = round ((counts - temp) / counts, 2)
+		score['Outlier Detection'] = round ((counts - temp) / counts, 2)
 
 		self.Plot (score, "Outlier")
 
@@ -90,7 +90,7 @@ class QoD (object) :
 				count += len (self.df[c]) - self.df[c].isnull().sum()
 				counts += self.length
 
-		score['Completeness Score'] = round (count / counts, 2)
+		score['Data Completeness'] = round (count / counts, 2)
 
 		self.Plot (score, "Completeness")
 
@@ -104,7 +104,7 @@ class QoD (object) :
 		duplicated_count = Counter (duplicated_list)
 
 		score = {}
-		score['duplicated'] = round (duplicated_count[False] / self.length, 2)
+		score['Data Duplicated'] = round (duplicated_count[False] / self.length, 2)
 
 		self.Plot (score, "Duplicated")
 
@@ -154,7 +154,7 @@ class QoD (object) :
 		entro += sum (div_list)
 
 		score = {}
-		score['class parity'] = round ((1 - noisy_count / self.length + entro) / 2, 2)
+		score['Class Parity'] = round ((1 - noisy_count / self.length + entro) / 2, 2)
 
 		self.Plot (score, "Class Parity")
 
@@ -163,6 +163,7 @@ class QoD (object) :
 	def _get_correlations (self, method="pearson") :
 		"""Get correlation between the data
 		"""
+		# data = self.df.drop (labels=self.label, axis=1)
 		cat_col = []
 		for c in self.df.columns :
 			if self.df[c].dtypes == "object" :
@@ -187,7 +188,7 @@ class QoD (object) :
 			data_encoded = pd.DataFrame ()
 
 			for i in self.df.columns :
-				data_encoded[i] = label.fit_transform (self.df[i])
+				data_encoded[i] = label.fit_transform (data[i])
 
 			rows= []
 			for var1 in data_encoded:
@@ -215,6 +216,8 @@ class QoD (object) :
 
 			cor_result = self.df.corr (method=method)
 
+		cor_result = cor_result.drop (labels=self.label, axis=1)
+		cor_result = cor_result.drop (labels=self.label, axis=0)
 		cor_result = np.abs (cor_result) > 0.5
 		high_cor_count = 0
 		for row in cor_result.values :
@@ -225,7 +228,7 @@ class QoD (object) :
 		high_cor_count = (high_cor_count - cor_result.shape[0]) / 2
 
 		score = {}
-		score['correlation'] = (cor_result.shape[0] - high_cor_count) / cor_result.shape[0]
+		score['Correlation Dection'] = round ((cor_result.shape[0] - high_cor_count) / cor_result.shape[0], 2)
 
 		self.Plot (score, "Correlation Score")
 
