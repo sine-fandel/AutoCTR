@@ -19,6 +19,7 @@ from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from alive_progress import alive_bar
+from imblearn.over_sampling import SMOTE
 
 import torch
 import os
@@ -36,16 +37,26 @@ class AutoCTR :
 	def __init__ (self, data_path, target, sep=",") :
 		self.data = pd.read_csv (data_path, sep=sep)
 		self.target = target
-		self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, DCNMix, ONN, WDL]
+		self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
 		self.sep = sep
 		self.input_list = []
 		self.data_profile = None
-		self.types_dict = {}
+		self.types_dict = self.get_types ()
 		self.tag = 0
+
+	def get_types (self) :
+		"""Get the column types
+		"""
+		types_dict = {}
+		for c in self.data.columns :
+			types_dict[c] = self.data[c].dtypes
+
+		return types_dict
 
 	def quality_checking (self) :
 		"""Checking the data quality
 		"""
+		self.tag = 1
 		qod = QoD (self.data, target=self.target)
 		qod._get_outlier ()
 		qod._get_completeness ()
@@ -68,15 +79,33 @@ class AutoCTR :
 		elif impute_method == 'mf' :
 			self.data = impute.MatrixFactorization ()
 
-		print ("Finish imputation by ", impute_method)
+		print ("Finished imputation by ", impute_method)
 
+		sm = SMOTE (random_state=666)
+		dataset = self.data
+		dataset[self.target] = dataset[self.target].astype (int)
+		y = dataset[self.target].values
+		X = dataset.drop (labels=self.target, axis=1).values
+		X_res, y_res = sm.fit_resample(X, y)
+		label_name = self.target
+		column_name = self.types_dict
+		column_name.pop (self.target)
+		column_list = column_name.keys ()
 
-	def profiling (self, test_size=0.2, outlier="z_score", correlation="pearson") :
-		"""Get the data summary of the dataset.
-		"""
-		self.data_profile = Profiling (self.data, outlier=outlier, correlation=correlation, target=self.target).summary ()
-		self.types_dict = self.data_profile.loc['types'].to_dict ()
-		self.tag = 1
+		ds = pd.DataFrame (X_res, columns=column_list)
+		ds.insert (ds.shape[1], label_name, y_res)
+
+		self.data = ds
+
+		print ("Finished SMOTE to balance the imbalance data")
+		
+
+	# def profiling (self, test_size=0.2, outlier="z_score", correlation="pearson") :
+	# 	"""Get the data summary of the dataset.
+	# 	"""
+	# 	self.data_profile = Profiling (self.data, outlier=outlier, correlation=correlation, target=self.target).summary ()
+	# 	self.types_dict = self.data_profile.loc['types'].to_dict ()
+	# 	self.tag = 1
 
 	def preprocessing (self, impute_method="knn", test_size=0.2) :
 		"""Deal with the missing values and convert data for training
@@ -85,49 +114,22 @@ class AutoCTR :
 			if not self.tag :
 				raise Exception ("[Error]: Do not get dataset yet...")
 
-			types_dict = self.data_profile.loc['types'].to_dict ()
-			count_missing = self.data_profile.loc['missing'].to_dict ()
-			if_missing = 0
-			for key, value in count_missing.items () :
-				if value != 0 :
-					if_missing = 1
-
-			if if_missing :
-				impute = Impute (self.data)
-				if impute_method == 'knn' :
-					self.data = impute.KnnImputation (n_neighbors=2)
-				elif impute_method == 'simple' :
-					self.data = impute.SimpleImputation ()
-				elif impute_method == 'iterative' :
-					self.data = impute.IterativeImputation ()
-				elif impute_method == 'forest' :
-					self.data = impute.RandomforestImputation ()
-				elif impute_method == 'mf' :
-					self.data = impute.MatrixFactorization ()
-
-				print ("Finish imputation by ", impute_method)
-			else :
-				print ("No missing value. Nothing to do...")
-
-			feature_names = self.data_profile.columns.values
+			feature_names = self.data.columns.values
 			feature_names_temp = list (feature_names)
 			feature_names = np.delete (feature_names, feature_names_temp.index (self.target))
-
 			fixlen_feature_columns = []
 
-			lbe = LabelEncoder ()
-			self.data[key] = lbe.fit_transform (self.data[key])
-			fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
-			# for key, value in types_dict.items () :
-			# 	if key != self.target :
-			# 		if value == "categorical" :
-			# 			lbe = LabelEncoder ()
-			# 			self.data[key] = lbe.fit_transform (self.data[key])
-			# 			fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
+			for key, value in self.types_dict.items () :
+				if key != self.target :
+					if value == 'object' :
+						lbe = LabelEncoder ()
+						self.data[key] = lbe.fit_transform (self.data[key])
+						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
 						
-			# 		elif value == "numeric" :
-			# 			fixlen_feature_columns.append (DenseFeat (key, 1, ))
+					else :
+						fixlen_feature_columns.append (DenseFeat (key, 1, ))
 			
+
 			train, test = train_test_split (self.data, test_size=test_size, random_state=2021)
 			self.input_list.append (train)
 			self.input_list.append (test)
