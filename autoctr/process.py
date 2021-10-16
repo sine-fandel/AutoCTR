@@ -50,7 +50,8 @@ class AutoCTR :
 		"""
 		types_dict = {}
 		for c in self.data.columns :
-			types_dict[c] = self.data[c].dtypes
+			if c != self.target :
+				types_dict[c] = self.data[c].dtypes
 
 		return types_dict
 
