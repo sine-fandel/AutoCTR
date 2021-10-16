@@ -43,6 +43,7 @@ class AutoCTR :
 		self.data_profile = None
 		self.types_dict = self.get_types ()
 		self.tag = 0
+		self.parity_score = {}
 
 	def get_types (self) :
 		"""Get the column types
@@ -61,7 +62,7 @@ class AutoCTR :
 		qod._get_outlier ()
 		qod._get_completeness ()
 		qod._get_duplicated ()
-		qod._get_class_parity ()
+		self.parity_score = qod._get_class_parity ()
 		qod._get_correlations ()
 
 	def data_cleaning (self, impute_method="knn") :
@@ -81,24 +82,26 @@ class AutoCTR :
 
 		print ("Finished imputation by ", impute_method)
 
-		sm = SMOTE (random_state=666)
-		dataset = self.data
-		dataset[self.target] = dataset[self.target].astype (int)
-		y = dataset[self.target].values
-		X = dataset.drop (labels=self.target, axis=1).values
-		X_res, y_res = sm.fit_resample(X, y)
-		label_name = self.target
-		column_name = self.types_dict
-		column_name.pop (self.target)
-		column_list = column_name.keys ()
+		if self.parity_score['Class Parity'] <= 0.5 :
+			sm = SMOTE (random_state=666)
+			dataset = self.data
+			dataset[self.target] = dataset[self.target].astype (int)
+			y = dataset[self.target].values
+			X = dataset.drop (labels=self.target, axis=1).values
+			X_res, y_res = sm.fit_resample(X, y)
+			label_name = self.target
+			column_name = self.types_dict
+			column_name.pop (self.target)
+			column_list = column_name.keys ()
 
-		ds = pd.DataFrame (X_res, columns=column_list)
-		ds.insert (ds.shape[1], label_name, y_res)
+			ds = pd.DataFrame (X_res, columns=column_list)
+			ds.insert (ds.shape[1], label_name, y_res)
 
-		self.data = ds
+			self.data = ds
 
-		print ("Finished SMOTE to balance the imbalance data")
-		
+			print ("Finished SMOTE to balance the imbalance data")
+		else :
+			print ("Data is balanced")
 
 	# def profiling (self, test_size=0.2, outlier="z_score", correlation="pearson") :
 	# 	"""Get the data summary of the dataset.
@@ -125,7 +128,7 @@ class AutoCTR :
 						lbe = LabelEncoder ()
 						self.data[key] = lbe.fit_transform (self.data[key])
 						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
-						
+					
 					else :
 						fixlen_feature_columns.append (DenseFeat (key, 1, ))
 			
