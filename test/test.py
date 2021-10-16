@@ -21,8 +21,8 @@
 
 from autoctr.process import AutoCTR
 
-rec = AutoCTR (data_path='/Users/apple/Downloads/tf-experiment/criteo_sample.txt', target='label', sep=",")
-rec.profiling () 
-rec.preprocessing ()
+rec = AutoCTR (data_path='/Users/apple/AutoCTR project/AutoCTR/example/criteo_sample.txt', target='label', sep=",")
+rec.quality_checking ()
+
 rec.run (epochs=100)
 
