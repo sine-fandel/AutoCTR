@@ -23,6 +23,9 @@ from autoctr.process import AutoCTR
 
 rec = AutoCTR (data_path='/Users/apple/AutoCTR project/AutoCTR/example/criteo_sample.txt', target='label', sep=",")
 rec.quality_checking ()
+rec.data_cleaning ()
+rec.preprocessing ()
 
-rec.run (epochs=100)
+# rec.run (epochs=100)
+rec.search ()
 
