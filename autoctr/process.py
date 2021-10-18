@@ -11,6 +11,7 @@ from .preprocessor.profile import Profiling
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
 from .preprocessor.quality import QoD
+from .preprocessor.ml_schema import ML_schema
 
 from .models import *
 from .optimizer import RandomSearch, BayesianOptimization
@@ -41,7 +42,7 @@ class AutoCTR :
 		self.sep = sep
 		self.input_list = []
 		self.data_profile = None
-		self.types_dict = self.get_types ()
+		# self.types_dict = self.get_types ()
 		self.tag = 0
 		self.parity_score = {}
 
@@ -118,14 +119,18 @@ class AutoCTR :
 			if not self.tag :
 				raise Exception ("[Error]: Do not get dataset yet...")
 
+			# get data schema
+			mlschema = ML_schema (self.data)
+			data_schema = mlschema.inference ()
+			print (data_schema)
 			feature_names = self.data.columns.values
 			feature_names_temp = list (feature_names)
 			feature_names = np.delete (feature_names, feature_names_temp.index (self.target))
 			fixlen_feature_columns = []
 
-			for key, value in self.types_dict.items () :
+			for key, value in data_schema.items () :
 				if key != self.target :
-					if value == 'object' :
+					if value != 'numerical' :
 						lbe = LabelEncoder ()
 						self.data[key] = lbe.fit_transform (self.data[key])
 						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
