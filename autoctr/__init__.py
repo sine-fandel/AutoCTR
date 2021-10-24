@@ -1,1 +1,3 @@
-__all__ = ['preprocessor', 'layers', 'models', 'process']
+__all__ = ['preprocessor', 'layers', 'models', 'process', 'recommender']
+
+from .recommender import *
