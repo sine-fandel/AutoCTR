@@ -36,11 +36,11 @@ class Recommender (object) :
 	:param target: The training / testing target of all model
 	:param sep: The seq of the dataset
 	"""
-	def __init__ (self, data_path, target, sep=",") :
-			self.data = pd.read_csv (data_path, sep=sep, encoding='unicode_escape').sample (frac=0.1)
+	def __init__ (self, data_path, target, sep=",", frac=1.0) :
+			self.data = pd.read_csv (data_path, sep=sep, encoding='unicode_escape').sample (frac=frac)
 			print (self.data)
 			self.target = target
-			self.model_list = [DeepFM]
+			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0
@@ -50,15 +50,19 @@ class Recommender (object) :
 			self.metrics = 0
 			self.data_schema = {}
 
-	def get_pipeline (self, frac=0.1) :
+	def get_pipeline (self, frac=0.1, impute_method="simple", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10) :
 		"""Get the best recommender pipeline for specify dataset
 		:param frac: The frac of pre-train dataset
+		:param impute_method: The method for imputing missing value
+		:param batch_size: Batch size of training
+		:param pre_train: whether to pretrain
+		:param pre_train_epoch / epochs: the epochs of pre train / train
 		"""
 		################################################################
 		#	Data quality checking and data cleaning					   #
 		################################################################
 		self.quality_checking ()
-		self.data_cleaning ()
+		self.data_cleaning (impute_method=impute_method)
 
 		################################################################
 		#	Get the data schema 									   #
@@ -84,54 +88,61 @@ class Recommender (object) :
 			self.task = "binary"
 			best_score = 0
 
-		# # pre train the model to find the best feature combination
-		print ("---------- Pre-training the Model to find the best feature comibinatin ----------")
-		vis_list = []
-		score_dict = {}
-		print ("ORIGINAL")
-		self.data = sample_data
-		self.feature_engineering ()
-		self.run (epochs=10, if_tune=1)
-		self.input_list = []
-		for c1 in column_list :
-			vis_list.append (c1)
-			for c2 in column_list :
-				if c1 == c2 :
-					print ("Combination: ", c1)
-					self.data = sample_data
-					self.feature_engineering (col_list=[c1])
-					self.run (epochs=10, if_tune=1)
-					self.input_list = []
-					score_dict[self.score[-1]] = [c1]
+		if pre_train :
+			print ("###Pre-training the Model to find the best feature comibinatin")
+			print ("###CONFIGURE")
+			print ('###pre-train-epochs: ', pre_train_epoch)
+			print ('###training-epochs: ', epochs)
+			print ('###batch_size: ', batch_size)
+			vis_list = []
+			score_dict = {}
+			print ("ORIGINAL...")
+			self.data = sample_data
+			self.feature_engineering ()
+			self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch)
+			self.input_list = []
+			for c1 in column_list :
+				vis_list.append (c1)
+				for c2 in column_list :
+					if self.data_schema[c1] != 'numerical' and self.data_schema[c2] != 'numerical' :
+						if c1 == c2 :
+							print ("Combination: ", c1, " ...")
+							self.data = sample_data
+							self.feature_engineering (col_list=[c1])
+							self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch)
+							self.input_list = []
+							score_dict[self.score[-1]] = [c1]
 
-				elif c1 != c2 and c2 not in vis_list :
-					print ("Combination: ", c1, " ", c2)
-					self.data = sample_data
-					self.feature_engineering (col_list=[c1, c2])
-					self.run (epochs=10, if_tune=1)
-					self.input_list = []
-					score_dict[self.score[-1]] = [c1, c2]
-		
-		best_com = []
-		for key, value in score_dict.items () :
-			if self.metrics == 0 :
-				if best_score > key :
-					best_score = key
-					best_com = value
+						elif c1 != c2 and c2 not in vis_list :
+							print ("Combination: ", c1, " ", c2, " ...")
+							self.data = sample_data
+							self.feature_engineering (col_list=[c1, c2])
+							self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch)
+							self.input_list = []
+							score_dict[self.score[-1]] = [c1, c2]
+			
+			best_com = []
+			for key, value in score_dict.items () :
+				if self.metrics == 0 :
+					if best_score > key :
+						best_score = key
+						best_com = value
 
-			else :
-				if best_score < key :
-					best_score = key
-					best_com = value
+				else :
+					if best_score < key :
+						best_score = key
+						best_com = value
 
-		print ("The best combination of feature is: ", best_com, "	With the score: ", best_score)
+			print ("The best combination of feature is: ", best_com, "	With the score: ", best_score)
 		################################################################
 		#	Train the model by the best combination feature			   #
 		################################################################
 		self.data = temp
 		self.input_list = []
+		if not pre_train :
+			best_com = None
 		self.feature_engineering (col_list=best_com)
-		self.run (epochs=10)
+		self.run (batch_size=batch_size, epochs=epochs)
 
 	def get_types (self) :
 		"""Get the column types
@@ -156,7 +167,7 @@ class Recommender (object) :
 		qod._get_correlations ()
 		print ("...done!")
 
-	def data_cleaning (self, impute_method="knn") :
+	def data_cleaning (self, impute_method="simple") :
 		"""clean the data
 		"""
 		print ("Quality Cleaning ......")
@@ -252,7 +263,7 @@ class Recommender (object) :
 		except Exception as e :
 			print (e)
 
-	def run (self, batch_size=32, epochs=100, verbose=2, save_path="./PKL/", earl_stop_patience=0, if_tune=0) :
+	def run (self, batch_size=256, epochs=100, verbose=2, save_path="./PKL/", earl_stop_patience=0, if_tune=0, Model=DeepFM) :
 		"""Train and Test
 		"""
 		
@@ -271,47 +282,45 @@ class Recommender (object) :
 			if if_tune == 0 :
 				print ('cuda ready...')
 				print ("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
-				print (train)
 			device = 'cuda:0'
 		else :
 			if if_tune == 0 :
 				print ('using cpu...')
 				print ("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
-				print (train)
 			device = 'cpu'
 
-		for Model in self.model_list :
-			if Model.__name__ != "PNN" :
-				model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
-				if self.metrics == 1 :
-					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
-				else :
-					model.compile ("adam", "mse", metrics=["mse"], )
 
-				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=if_tune)
-				pred_ans = model.predict (test_model_input, 256)
-
-				if self.metrics == 1 :
-					print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
-					self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
-				else :
-					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
-					self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
-			
+		if Model.__name__ != "PNN" :
+			model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
+			if self.metrics == 1 :
+				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
 			else :
-				model = Model (dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
-				if self.metrics == 1 :
-					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
-				else :
-					model.compile ("adam", "mse", metrics=["mse"], )
-				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=if_tune)
-				pred_ans = model.predict (test_model_input, 256)
+				model.compile ("adam", "mse", metrics=["mse"], )
 
-				if self.metrics == 1 :
-					print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
-					self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
-				else :
-					print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
-					self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
+			model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=if_tune)
+			pred_ans = model.predict (test_model_input, 256)
+
+			if self.metrics == 1 :
+				print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
+				self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
+			else :
+				print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
+				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
+		
+		else :
+			model = Model (dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
+			if self.metrics == 1 :
+				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
+			else :
+				model.compile ("adam", "mse", metrics=["mse"], )
+			model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=if_tune)
+			pred_ans = model.predict (test_model_input, 256)
+
+			if self.metrics == 1 :
+				print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
+				self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
+			else :
+				print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
+				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
 
 
