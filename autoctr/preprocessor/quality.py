@@ -91,7 +91,7 @@ class QoD (object) :
 				counts += self.length
 
 		score['Data Completeness'] = round (count / counts, 2)
-		print ("Missing number: ", counts - count)
+		print ('Data Completeness: ', score['Data Completeness'])
 		self.Plot (score, "Completeness")
 
 		return score
@@ -105,7 +105,7 @@ class QoD (object) :
 
 		score = {}
 		score['Data Duplicated'] = round (duplicated_count[False] / self.length, 2)
-		print ("Duplicated number: ", self.length - duplicated_count[False])
+		print ('Data Duplicated: ', score['Data Duplicated'])
 		self.Plot (score, "Duplicated")
 
 		return score
@@ -155,7 +155,7 @@ class QoD (object) :
 
 		score = {}
 		score['Class Parity'] = round ((1 - noisy_count / self.length + entro) / 2, 2)
-
+		print ('Class Parity: ', score['Class Parity'])
 		self.Plot (score, "Class Parity")
 
 		return score
@@ -229,7 +229,7 @@ class QoD (object) :
 
 		score = {}
 		score['Correlation Dection'] = round ((cor_result.shape[0] - high_cor_count) / cor_result.shape[0], 2)
-
+		print ('Correlation Dection: ', score['Correlation Dection'])
 		self.Plot (score, "Correlation Score")
 
 		return score
