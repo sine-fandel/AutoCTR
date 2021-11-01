@@ -27,6 +27,7 @@ import os
 import pandas as pd
 import numpy as np
 import json
+import matplotlib.pyplot as plt
 
 class AutoCTR :
 	"""The whole process of recommender
@@ -38,7 +39,7 @@ class AutoCTR :
 	def __init__ (self, data_path, target, sep=",") :
 		self.data = pd.read_csv (data_path, sep=sep)
 		self.target = target
-		self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
+		self.model_list = ['DeepFM', 'xDeepFM', 'AFN', 'NFM', 'IFM', 'DIFM', 'AutoInt', 'PNN', 'DCN', 'ONN', 'WDL']
 		self.sep = sep
 		self.input_list = []
 		self.data_profile = None
@@ -122,11 +123,41 @@ class AutoCTR :
 			# get data schema
 			mlschema = ML_schema (self.data)
 			data_schema = mlschema.inference ()
-			print (data_schema)
+
 			feature_names = self.data.columns.values
 			feature_names_temp = list (feature_names)
 			feature_names = np.delete (feature_names, feature_names_temp.index (self.target))
+			# feature_names = np.append (feature_names, 'TE_user')
+			feature_names = np.append (feature_names, 'TE_item_time')
+			print (feature_names)
 			fixlen_feature_columns = []
+
+			cat = 'user'
+			te = self.data[[cat, 'ratings']].groupby (cat).mean ()
+			te = te.reset_index ()
+			te.columns = [cat, 'TE_' + cat]
+			self.data = self.data.merge (te, how='left', on=cat)
+			data_schema['TE_user'] = 'numerical'
+
+			# cat1 = 'item'
+			# te1 = self.data[[cat1, 'ratings']].groupby (cat1).mean ()
+			# te1 = te1.reset_index ()
+			# te1.columns = [cat1, 'TE_' + cat1]
+			# self.data = self.data.merge (te1, how='left', on=cat1)
+			# data_schema['TE_item'] = 'numerical'
+
+			# te = self.data[['user', 'time', 'ratings']].groupby (['user', 'time']).mean ()
+			# te = te.reset_index()
+			# te.columns = ['user', 'time', 'TE_user_time']
+			# self.data = self.data.merge (te, how='left', left_on=['user', 'time'], right_on=['user', 'time'])
+			# data_schema['TE_user_time'] = 'numerical'
+
+			# te = self.data[['item', 'time', 'ratings']].groupby (['item', 'time']).mean ()
+			# print (te)
+			# te = te.reset_index()
+			# te.columns = ['item', 'time', 'TE_item_time']
+			# self.data = self.data.merge (te, how='left', left_on=['item', 'time'], right_on=['item', 'time'])
+			# data_schema['TE_item_time'] = 'numerical'
 
 			for key, value in data_schema.items () :
 				if key != self.target :
@@ -194,6 +225,7 @@ class AutoCTR :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
 				else :
 					model.compile ("adam", "mse", metrics=["mse"], )
+				print (train)
 				model.fit (train_model_input, train[self.target].values, batch_size=batch_size, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience)
 				pred_ans = model.predict (test_model_input, 256)
 

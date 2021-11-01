@@ -78,13 +78,15 @@ class BayesianOptimization (Observable) :
 	:param bounds_transformer: If provided, the transformation is applied to the bounds.
 	"""
 	def __init__ (self, model_name, epochs, max_evals, inputs, task="binary", device="cpu", 
-				random_state=None, verbose=2, bounds_transformer=None, target="label", metrics="0"):
+				random_state=None, verbose=2, bounds_transformer=None, target="label", metrics="0",
+				batch_size=256):
 		self.model_name = model_name
 		self.max_evals = max_evals
 		self.target = target
 		self.metrics = metrics
 		self.device = device
 		self.task = task
+		self.batch_size = batch_size
 		if self.model_name == "DeepFM" :
 			self.model = DeepFM
 			self.pbounds = {
@@ -244,7 +246,7 @@ class BayesianOptimization (Observable) :
 		elif self.metrics == 0 :
 			model.compile ("adam", "mse", metrics=["mse"], )
 		
-		model.fit (self.inputs[2], self.inputs[0][self.target].values, batch_size=32, epochs=self.epochs, verbose=2, earl_stop_patience=0, if_tune=1)
+		model.fit (self.inputs[2], self.inputs[0][self.target].values, batch_size=self.batch_size, epochs=self.epochs, verbose=2, earl_stop_patience=0, if_tune=1)
 		pred_ans = model.predict (self.inputs[3], 256)
 
 		if self.metrics == 1 :
@@ -362,7 +364,7 @@ class BayesianOptimization (Observable) :
 					best_round = iteration
 
 				bar ()
-				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (iteration, round (-self.res[-1]['target'], 4), round (best_score, 4)))
+				bar.text ("#%d  score: %.4f		Best score currently: %.4f" % (iteration, round (self.res[-1]['target'], 4), round (best_score, 4)))
 
 		print ("Best Accuracy: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
 		# print ("Best Hyperparameters: ", (best_param))

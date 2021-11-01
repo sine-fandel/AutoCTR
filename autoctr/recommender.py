@@ -29,6 +29,11 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+
 class Recommender (object) :
 	"""To find the best recommender pipeline by AutoML
 	
@@ -39,8 +44,9 @@ class Recommender (object) :
 	def __init__ (self, data_path, target, sep=",", frac=1.0) :
 			self.data = pd.read_csv (data_path, sep=sep, encoding='unicode_escape').sample (frac=frac)
 			print (self.data)
+
 			self.target = target
-			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
+			self.model_list = [DeepFM, xDeepFM, AutoInt]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0
@@ -49,14 +55,91 @@ class Recommender (object) :
 			self.task = 0
 			self.metrics = 0
 			self.data_schema = {}
+			self.quality_list = []
+	
+	def generate_pdf (self, report_path) :
+		"""Generate the pdf report of data
+		"""
+		doc = SimpleDocTemplate (report_path)
+		styles = getSampleStyleSheet ()
+		title_style = styles['Title']
+		heading2_style = styles['Heading2']
+		code_style = styles['Code']
+		def_style = styles['Definition']
+		body_stype = styles['BodyText']
 
-	def get_pipeline (self, frac=0.1, impute_method="simple", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10) :
+		story = []
+		story.append (Paragraph ("Data Profile", title_style))
+
+		# show the first five row of dataset
+		story.append (Paragraph ("The shape of dataset: " + str (self.data.shape), body_stype))
+
+		# data schema part 
+		story.append (Paragraph ("1 DATA SCHEMA", heading2_style))
+		story.append (Spacer (1, .07 * inch))
+		story.append (Paragraph ("Note: Data schema is shown as the following table to present what data belongs to what types.", def_style))
+		story.append (Spacer (1, .2 * inch))
+		data_schema = [['COLUMN NAME', 'FEATURE TYPE']]
+		for key, value in self.data_schema.items () :
+			data_schema.append ([key, value])
+
+		t = Table (data_schema, splitByRow=1)
+		t.setStyle (TableStyle (
+			[('BOX', (0, 0), (-1, -1), 1, colors.black),
+			('BACKGROUND', (0, 0), (1, 0), colors.lavender),
+			("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
+			('ALIGN', (0, 0), (-1, -1), 'CENTER')]
+			))
+		story.append (t)
+
+		# data quality
+		story.append (Spacer (1, .2 * inch))
+		story.append (Paragraph ("2 DATA QUALITY", heading2_style))
+		story.append (Spacer (1, .07 * inch))
+		story.append (Paragraph ("Note: Data quality is shown as the following table, which includes the quality metric, the description of this type and the quality score", def_style))
+		story.append (Spacer (1, .2 * inch))
+		data_quality = [['QUALITY METRIC', 'DESCRIPTION', 'SCORE']]
+		for q in self.quality_list :
+			key, value = list (q.keys ())[0], list (q.values ())[0]
+			description = ''
+			if key == 'Outlier Detection' :
+				description = Paragraph ('The outlier in range of [0, 1], wish higher score = 1 - #outlier / #data')
+			elif key == 'Data Completeness' :
+				description = Paragraph ('The accounts of missing value score = 1 - #missing / #data')
+			elif key == 'Data Duplicated' :
+				description = Paragraph ('The accounts of redundant data score = 1 - #redundant / # data')
+			elif key == 'Class Parity' :
+				description = Paragraph ('Get class parity, includes:    class imbalance: Shannon Entropy    class purity: parity score = (class imbalance + class purity) / 2')
+			elif key == 'Correlation Dection' :
+				description = Paragraph ('Get correlation between the data by pearson method')
+			
+			data_quality.append ([key, description, value])
+
+		t = Table (data_quality, splitByRow=1, colWidths=(1.5*inch, 3.*inch, .6*inch))
+		t.setStyle (TableStyle (
+			[('BOX', (0, 0), (-1, -1), 1, colors.black),
+			('BACKGROUND', (0, 0), (2, 0), colors.lavender),
+			('LINEABOVE', (0, 1), (-1, 1), 0.7, colors.grey),
+			('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+			('ALIGN', (0, 1), (0, -1), 'CENTER'),
+			('VALIGN', (0, 1), (0, -1), 'MIDDLE'),
+			('ALIGN', (2, 1), (2, -1), 'CENTER'),
+			('VALIGN', (2, 1), (2, -1), 'MIDDLE'),]
+			))
+
+		story.append (t)
+
+		doc.build (story)
+
+	def get_pipeline (self, max_evals=10, frac=0.1, impute_method="simple", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf") :
 		"""Get the best recommender pipeline for specify dataset
 		:param frac: The frac of pre-train dataset
 		:param impute_method: The method for imputing missing value
 		:param batch_size: Batch size of training
 		:param pre_train: whether to pretrain
 		:param pre_train_epoch / epochs: the epochs of pre train / train
+		:param report_path: the path of saving data report
+		:param max_evals: max epoch of search
 		"""
 		################################################################
 		#	Data quality checking and data cleaning					   #
@@ -69,7 +152,8 @@ class Recommender (object) :
 		################################################################
 		mlschema = ML_schema (self.data)
 		self.data_schema = mlschema.inference ()
-		print ("Data Schema: ", self.data_schema)
+
+		self.generate_pdf (report_path=report_path)
 
 		################################################################
 		#	Pre-train the model to find the best combination		   #
@@ -88,61 +172,65 @@ class Recommender (object) :
 			self.task = "binary"
 			best_score = 0
 
-		if pre_train :
-			print ("###Pre-training the Model to find the best feature comibinatin")
-			print ("###CONFIGURE")
-			print ('###pre-train-epochs: ', pre_train_epoch)
-			print ('###training-epochs: ', epochs)
-			print ('###batch_size: ', batch_size)
-			vis_list = []
-			score_dict = {}
-			print ("ORIGINAL...")
-			self.data = sample_data
-			self.feature_engineering ()
-			self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch)
-			self.input_list = []
-			for c1 in column_list :
-				vis_list.append (c1)
-				for c2 in column_list :
-					if self.data_schema[c1] != 'numerical' and self.data_schema[c2] != 'numerical' :
-						if c1 == c2 :
-							print ("Combination: ", c1, " ...")
-							self.data = sample_data
-							self.feature_engineering (col_list=[c1])
-							self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch)
-							self.input_list = []
-							score_dict[self.score[-1]] = [c1]
+		for model in self.model_list :
+			if pre_train :
+				print ("###Pre-training the ", model.__name__, " to find the best feature comibinatin")
+				print ("###CONFIGURE")
+				print ('###pre-train-epochs: ', pre_train_epoch)
+				print ('###training-epochs: ', epochs)
+				print ('###batch_size: ', batch_size)
+				vis_list = []
+				score_dict = {}
+				print ("ORIGINAL...")
+				self.data = sample_data
+				self.feature_engineering ()
+				self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch, Model=model)
+				self.input_list = []
 
-						elif c1 != c2 and c2 not in vis_list :
-							print ("Combination: ", c1, " ", c2, " ...")
-							self.data = sample_data
-							self.feature_engineering (col_list=[c1, c2])
-							self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch)
-							self.input_list = []
-							score_dict[self.score[-1]] = [c1, c2]
+				for c1 in column_list :
+					vis_list.append (c1)
+					for c2 in column_list :
+						if self.data_schema[c1] != 'numerical' and self.data_schema[c2] != 'numerical' :
+							if c1 == c2 :
+								print ("Combination: ", c1, " ...")
+								self.data = sample_data
+								self.feature_engineering (col_list=[c1])
+								self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch, Model=model)
+								self.input_list = []
+								score_dict[self.score[-1]] = [c1]
+
+							elif c1 != c2 and c2 not in vis_list :
+								print ("Combination: ", c1, " ", c2, " ...")
+								self.data = sample_data
+								self.feature_engineering (col_list=[c1, c2])
+								self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch, Model=model)
+								self.input_list = []
+								score_dict[self.score[-1]] = [c1, c2]
+
+				best_com = []
+				for key, value in score_dict.items () :
+					if self.metrics == 0 :
+						if best_score > key :
+							best_score = key
+							best_com = value
+
+					else :
+						if best_score < key :
+							best_score = key
+							best_com = value
+
+				print ("The best combination of feature is: ", best_com, "	With the score: ", best_score)
 			
-			best_com = []
-			for key, value in score_dict.items () :
-				if self.metrics == 0 :
-					if best_score > key :
-						best_score = key
-						best_com = value
-
-				else :
-					if best_score < key :
-						best_score = key
-						best_com = value
-
-			print ("The best combination of feature is: ", best_com, "	With the score: ", best_score)
-		################################################################
-		#	Train the model by the best combination feature			   #
-		################################################################
-		self.data = temp
-		self.input_list = []
-		if not pre_train :
-			best_com = None
-		self.feature_engineering (col_list=best_com)
-		self.run (batch_size=batch_size, epochs=epochs)
+			################################################################
+			#	Train the model by the best combination feature			   #
+			################################################################
+			self.data = temp
+			self.input_list = []
+			if not pre_train :
+				best_com = None
+			self.feature_engineering (col_list=best_com)
+			self.run (batch_size=batch_size, epochs=epochs, Model=model)
+			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model)
 
 	def get_types (self) :
 		"""Get the column types
@@ -160,11 +248,12 @@ class Recommender (object) :
 		print ("Quality Checking ......")
 		self.tag = 1
 		qod = QoD (self.data, target=self.target)
-		qod._get_outlier ()
-		qod._get_completeness ()
-		qod._get_duplicated ()
+		self.quality_list.append (qod._get_outlier ())
+		self.quality_list.append (qod._get_completeness ())
+		self.quality_list.append (qod._get_duplicated ())
 		self.parity_score = qod._get_class_parity ()
-		qod._get_correlations ()
+		self.quality_list.append (self.parity_score)
+		self.quality_list.append (qod._get_correlations ())
 		print ("...done!")
 
 	def data_cleaning (self, impute_method="simple") :
@@ -220,28 +309,33 @@ class Recommender (object) :
 			feature_names = np.delete (feature_names, feature_names_temp.index (self.target))
 			fixlen_feature_columns = []
 
-
+			train, test = train_test_split (self.data, test_size=test_size, random_state=2021)
 			# feature combination by target encoding
 			if col_list != None :
 				col_list1 = col_list.copy ()
 				col_list1.append (self.target)
-				te = self.data[col_list1].groupby (col_list).mean ()
-				te = te.reset_index()
+				te_train = train[col_list1].groupby (col_list).mean ()
+				te_test = test[col_list1].groupby (col_list).mean ()
+				te_train = te_train.reset_index ()
+				te_test = te_test.reset_index ()
 				new_col_name = 'TE'
 				for c in col_list :
 					new_col_name = new_col_name + '_' + str (c)
 				col_list2 = col_list.copy ()
 				col_list2.append (new_col_name) 
-				te.columns = col_list2
-				self.data = self.data.merge (te, how='left', on=col_list)
+				te_train.columns = col_list2
+				te_test.columns = col_list2
+				train = train.merge (te_train, how='left', on=col_list)
+				test = test.merge (te_test, how='left', on=col_list)
 				self.data_schema[new_col_name] = 'numerical'
 				feature_names = np.append (feature_names, new_col_name)
-			
+
 			for key, value in self.data_schema.items () :
 				if key != self.target :
 					if value != 'numerical' :
 						lbe = LabelEncoder ()
-						self.data[key] = lbe.fit_transform (self.data[key])
+						train[key] = lbe.fit_transform (train[key])
+						test[key] = lbe.fit_transform (test[key])
 						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
 					
 					else :
@@ -250,7 +344,6 @@ class Recommender (object) :
 			if col_list != None :
 				self.data_schema.pop (new_col_name)
 
-			train, test = train_test_split (self.data, test_size=test_size, random_state=2021)
 			self.input_list.append (train)
 			self.input_list.append (test)
 			self.input_list.append ({name: train[name] for name in feature_names})
@@ -303,6 +396,7 @@ class Recommender (object) :
 			if self.metrics == 1 :
 				print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
 				self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
+
 			else :
 				print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
@@ -319,8 +413,101 @@ class Recommender (object) :
 			if self.metrics == 1 :
 				print ("Validation Accuracy: ", round (roc_auc_score (test[self.target].values, pred_ans), 4))
 				self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
+
 			else :
 				print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
+            
+# 			if self.metrics == 1 :
+# 				self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
+# 			else :
+# 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
+
+	def search (self, batch_size=256, Model=DeepFM, tuner="bayesian", save_path="./PKL/", hp_path="./HP/", max_evals=10, epochs=100) :
+		"""Search the best hyperparameters for model
+		"""
+		save_path = save_path + tuner + "/"
+		hp_path = hp_path + tuner + "/"
+
+		train = self.input_list[0]
+		if train[self.target].nunique () > 2:
+			metrics = 0			# MSE
+			task = "regression"
+			print ("TASK: ", task)
+		else :
+			metrics = 1			# AUC
+			task = "binary"
+			print ("TASK: ", task)
+
+		use_cuda = True
+		if use_cuda and torch.cuda.is_available () :
+			print ('cuda ready...')
+			device = 'cuda:0'
+		else :
+			print ('using cpu...')
+			device = 'cpu'
+		
+		if not os.path.exists (save_path) :
+			os.makedirs (save_path)
+		if not os.path.exists (hp_path) :
+			os.makedirs (hp_path)
+
+		if tuner == "random" :
+			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
+			random_search = RandomSearch (model_name=Model.__name__, linear_feature_columns=self.input_list[4],
+										dnn_feature_columns=self.input_list[5], task="binary", 
+										device="cpu", max_evals=max_evals, save_path=save_path, batch_size=batch_size)
+
+			best_param = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
+												self.input_list[1][self.target].values, epochs=epochs)
+									
+			with open (hp_path + model_tune + ".json", "w") as f :
+				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
+
+
+		if tuner == "bayesian" :
+			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
+			bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=device,
+													model_name=Model.__name__, epochs=epochs, max_evals=max_evals, target=self.target, metrics=metrics,
+													task=task, batch_size=batch_size)	
+			best_param = bayesian_search.maximize ()
+
+			with open (hp_path + Model.__name__ + ".json", "w") as f :
+				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
+
+
+	# def _get_model (self, models=[]) :
+	# 	"""Get models
+
+	# 	Models list: [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, DCNMix, ONN, WDL]
+	# 	"""
+	# 	model_list = []
+	# 	for model in models :
+	# 		if model == "DeepFM" :
+	# 			model_list.append (DeepFM)
+	# 		elif model == "xDeepFM" :
+	# 			model_list.append (xDeepFM)
+	# 		elif model == "AFN" :
+	# 			model_list.append (AFN)
+	# 		elif model == "NFM" :
+	# 			model_list.append (NFM)
+	# 		elif model == "IFM" :
+	# 			model_list.append (IFM)
+	# 		elif model == "DIFM" :
+	# 			model_list.append (DIFM)
+	# 		elif model == "AutoInt" :
+	# 			model_list.append (AutoInt)
+	# 		elif model == "PNN" :
+	# 			model_list.append (PNN)
+	# 		elif model == "DCN" :
+	# 			model_list.append (DCN)
+	# 		elif model == "DCNMix" :
+	# 			model_list.append (DCNMix)
+	# 		elif model == "ONN" :
+	# 			model_list.append (ONN)
+	# 		elif model == "WDL" :
+	# 			model_list.append (WDL)
+
+	# 	return model_list
 
 
