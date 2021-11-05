@@ -271,7 +271,7 @@ class BaseModel(nn.Module) :
 		if batch_size is None:
 			batch_size = 256
 
-		model = self.train()
+		model = self.train ()
 		loss_func = self.loss_func
 		optim = self.optim
 
@@ -403,7 +403,6 @@ class BaseModel(nn.Module) :
 
 							optim.zero_grad ()
 							loss = loss_func (y_pred, y.squeeze (), reduction='sum')
-								
 							reg_loss = self.get_regularization_loss ()
 
 							total_loss = loss + reg_loss + self.aux_loss

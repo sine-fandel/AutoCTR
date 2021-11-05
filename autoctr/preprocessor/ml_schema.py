@@ -42,7 +42,7 @@ class ML_schema (object) :
 		with open ('/Users/apple/AutoCTR project/AutoCTR/autoctr/preprocessor/pkl/feature_type_model.pkl', 'rb') as file :
 			model = pickle.load (file)
 		
-		types_list = ['categorical', 'numerical', 'time', 'others']
+		types_list = ['categorical', 'numerical', 'timestamp', 'others']
 		schema = {}
 		column_name = self.df.columns
 		for column in column_name :

@@ -366,7 +366,7 @@ class BayesianOptimization (Observable) :
 				bar ()
 				bar.text ("#%d  score: %.4f		Best score currently: %.4f" % (iteration, round (self.res[-1]['target'], 4), round (best_score, 4)))
 
-		print ("Best Accuracy: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
+		print ("Best Score: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
 		# print ("Best Hyperparameters: ", (best_param))
 		return best_param
 		

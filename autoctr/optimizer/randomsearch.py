@@ -109,7 +109,7 @@ class RandomSearch () :
 	:param models: Model list of tuning
 	:param max_evals: The max rounds of tuning
 	"""
-	def __init__ (self, model_name, linear_feature_columns, dnn_feature_columns, save_path, task="binary", device="cpu", max_evals=10) :
+	def __init__ (self, model_name, linear_feature_columns, metrics, batch_size, dnn_feature_columns, save_path, task="binary", device="cpu", max_evals=10) :
 		self.model_name = model_name
 		self.max_evals = max_evals
 		self.linear_feature_columns = linear_feature_columns
@@ -118,11 +118,17 @@ class RandomSearch () :
 		self.device = device
 		self.hp_grid = _get_hp_grid (model_name)
 		self.save_path = save_path
+		self.batch_size = batch_size
+		self.metrics = metrics
 
 	def search (self, train_model_input, train_y, test_model_input, test_y, epochs=100, verbose=2, earl_stop_patience=0) :
 		best_Score = 0
 		best_param = {}
 		best_round = 0
+		if self.metrics == 1 :
+			best_score = 0
+		elif self.metrics == 0 :
+			best_score = 9999
 		with alive_bar (self.max_evals) as bar :
 			for i in range (self.max_evals) :
 				random_params = {k: random.sample (v.tolist (), 1)[0] if not isinstance (v, tuple) else (random.sample (v[0].tolist (), 1)[0], random.sample (v[1].tolist (), 1)[0]) for k, v in self.hp_grid.items ()}
@@ -159,21 +165,33 @@ class RandomSearch () :
 				elif self.model_name == "AutoInt" :
 					model = AutoInt (linear_feature_columns=self.linear_feature_columns, dnn_feature_columns=self.dnn_feature_columns, **random_params)
 
-				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
-				model.fit (train_model_input, train_y, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=1)
+				if self.metrics == 1 :
+					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
+				elif self.metrics == 0 :
+					model.compile ("adam", "mse", metrics=["mse"], )
+
+				model.fit (train_model_input, train_y, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=1, batch_size=self.batch_size)
 				pred_ans = model.predict (test_model_input, 256)
 
-				cur_score = roc_auc_score (test_y, pred_ans)
-				if cur_score > best_Score :
+				if self.metrics == 1 :
+					cur_score = roc_auc_score (test_y, pred_ans)
+				elif self.metrics == 0 :
+					cur_score = mean_squared_error (test_y, pred_ans)
+
+				if self.metrics == 1 and cur_score > best_score :
 					best_round = i
-					best_Score =cur_score
+					best_score = cur_score
+					best_param = random_params
+				elif self.metrics == 0 and cur_score < best_score :
+					best_round = i
+					best_score = cur_score
 					best_param = random_params
 
 				bar ()
-				bar.text ("#%d  Accuracy: %.4f		Best score currently: %.4f" % (i + 1, cur_score, best_Score))
+				bar.text ("#%d  score: %.4f		Best score currently: %.4f" % (i + 1, cur_score, best_score))
 				torch.save (model.state_dict (), self.save_path + self.model_name + "_epoach:" + str (epochs) + ".pkl")
 
-		print ("Best Accuracy: %.4f in %d" % (best_Score, best_round))
+		print ("Best Score: %.4f in %d" % (best_score, best_round))
 		# print ("Best Hyperparameters: ", (best_param))
 		return best_param
 

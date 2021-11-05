@@ -46,7 +46,7 @@ class Recommender (object) :
 			print (self.data)
 
 			self.target = target
-			self.model_list = [DeepFM, xDeepFM, AutoInt]
+			self.model_list = [DeepFM]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0
@@ -131,7 +131,7 @@ class Recommender (object) :
 
 		doc.build (story)
 
-	def get_pipeline (self, max_evals=10, frac=0.1, impute_method="simple", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf") :
+	def get_pipeline (self, max_evals=10, frac=0.1, impute_method="simple", tuner="bayesian", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf") :
 		"""Get the best recommender pipeline for specify dataset
 		:param frac: The frac of pre-train dataset
 		:param impute_method: The method for imputing missing value
@@ -186,7 +186,7 @@ class Recommender (object) :
 				self.feature_engineering ()
 				self.run (if_tune=1, batch_size=batch_size, epochs=pre_train_epoch, Model=model)
 				self.input_list = []
-
+                
 				for c1 in column_list :
 					vis_list.append (c1)
 					for c2 in column_list :
@@ -230,7 +230,7 @@ class Recommender (object) :
 				best_com = None
 			self.feature_engineering (col_list=best_com)
 			self.run (batch_size=batch_size, epochs=epochs, Model=model)
-			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model)
+			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner)
 
 	def get_types (self) :
 		"""Get the column types
@@ -400,6 +400,11 @@ class Recommender (object) :
 			else :
 				print ("Validation MSE: ", round (mean_squared_error (test[self.target].values, pred_ans), 4))
 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
+
+# 			if self.metrics == 1 :
+# 				self.score.append (round (roc_auc_score (test[self.target].values, pred_ans), 4))
+# 			else :
+# 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
 		
 		else :
 			model = Model (dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
@@ -426,18 +431,21 @@ class Recommender (object) :
 	def search (self, batch_size=256, Model=DeepFM, tuner="bayesian", save_path="./PKL/", hp_path="./HP/", max_evals=10, epochs=100) :
 		"""Search the best hyperparameters for model
 		"""
+		if max_evals == 0 :
+			return
+        
 		save_path = save_path + tuner + "/"
 		hp_path = hp_path + tuner + "/"
 
 		train = self.input_list[0]
-		if train[self.target].nunique () > 2:
-			metrics = 0			# MSE
-			task = "regression"
-			print ("TASK: ", task)
-		else :
-			metrics = 1			# AUC
-			task = "binary"
-			print ("TASK: ", task)
+		# if train[self.target].nunique () > 2:
+		# 	metrics = 0			# MSE
+		# 	task = "regression"
+		# 	print ("TASK: ", task)
+		# else :
+		# 	metrics = 1			# AUC
+		# 	task = "binary"
+		# 	print ("TASK: ", task)
 
 		use_cuda = True
 		if use_cuda and torch.cuda.is_available () :
@@ -455,21 +463,21 @@ class Recommender (object) :
 		if tuner == "random" :
 			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
 			random_search = RandomSearch (model_name=Model.__name__, linear_feature_columns=self.input_list[4],
-										dnn_feature_columns=self.input_list[5], task="binary", 
+										dnn_feature_columns=self.input_list[5], task=self.task, metrics=self.metrics,
 										device="cpu", max_evals=max_evals, save_path=save_path, batch_size=batch_size)
 
 			best_param = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
 												self.input_list[1][self.target].values, epochs=epochs)
 									
-			with open (hp_path + model_tune + ".json", "w") as f :
+			with open (hp_path + Model.__name__ + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
 
 
 		if tuner == "bayesian" :
 			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
 			bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=device,
-													model_name=Model.__name__, epochs=epochs, max_evals=max_evals, target=self.target, metrics=metrics,
-													task=task, batch_size=batch_size)	
+													model_name=Model.__name__, epochs=epochs, max_evals=max_evals, target=self.target, metrics=self.metrics,
+													task=self.task, batch_size=batch_size)	
 			best_param = bayesian_search.maximize ()
 
 			with open (hp_path + Model.__name__ + ".json", "w") as f :
