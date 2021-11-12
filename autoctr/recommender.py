@@ -46,7 +46,7 @@ class Recommender (object) :
 			print (self.data)
 
 			self.target = target
-			self.model_list = [DeepFM]
+			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0

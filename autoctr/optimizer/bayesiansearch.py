@@ -28,6 +28,7 @@ class Queue:
 			raise StopIteration("Queue is empty, no more objects to retrieve.")
 		obj = self._queue[0]
 		self._queue = self._queue[1:]
+		print (obj)
 		return obj
 
 	def next(self):
@@ -90,95 +91,105 @@ class BayesianOptimization (Observable) :
 		if self.model_name == "DeepFM" :
 			self.model = DeepFM
 			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
-							"l2_reg_linear": (0.00001, 1.0),
-							"l2_reg_embedding": (0.00001, 1.0),
-							"l2_reg_dnn": (0.01, 0.1),
-							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
-						}
-		elif self.model_name == "xDeepFM" :
-			self.model = xDeepFM
-			self.pbounds = {
-							# "cin_layer_size": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
-							"l2_reg_linear": (0.00001, 1.0),
-							"l2_reg_embedding": (0.00001, 1.0),
-							"l2_reg_dnn": (0.01, 0.1),
-							"l2_reg_cin": (0.01, 0.1),
-							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
-						}
-		elif self.model_name == "IFM" :
-			self.model = IFM
-			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
-							"l2_reg_linear": (0.00001, 1.0),
-							"l2_reg_embedding": (0.00001, 1.0),
-							"l2_reg_dnn": (0.01, 0.1),
-							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
-						}
-		elif self.model_name == "DIFM" :
-			self.model = DIFM
-			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
-							"l2_reg_linear": (0.00001, 1.0),
-							"l2_reg_embedding": (0.00001, 1.0),
-							"l2_reg_dnn": (0.01, 0.1),
-							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
-						}
-		elif self.model_name == "NFM" :
-			self.model = NFM
-			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
 							"l2_reg_linear": (0.00001, 1.0),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
 							"dnn_dropout": (0.0, 1.0),
-							# "bi_dropout": (0.0, 1.0),
+						}
+		elif self.model_name == "xDeepFM" :
+			self.model = xDeepFM
+			self.pbounds = {
+							# "cin_layer_size": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							# "cin_layer_size1": (16, 2048),
+							# "cin_layer_size2": (16, 2048),
+							"l2_reg_linear": (0.00001, 1.0),
+							"l2_reg_embedding": (0.00001, 1.0),
+							"l2_reg_dnn": (0.01, 0.1),
+							"l2_reg_cin": (0.01, 0.1),
+							"init_std": (0.00001, 1.0),
+							"dnn_dropout": (0.0, 1.0),
+						}
+		elif self.model_name == "IFM" :
+			self.model = IFM
+			self.pbounds = {
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
+							"l2_reg_linear": (0.00001, 1.0),
+							"l2_reg_embedding": (0.00001, 1.0),
+							"l2_reg_dnn": (0.01, 0.1),
+							"init_std": (0.00001, 1.0),
+							"dnn_dropout": (0.0, 1.0),
+						}
+		elif self.model_name == "DIFM" :
+			self.model = DIFM
+			self.pbounds = {
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
+							"l2_reg_linear": (0.00001, 1.0),
+							"l2_reg_embedding": (0.00001, 1.0),
+							"l2_reg_dnn": (0.01, 0.1),
+							"init_std": (0.00001, 1.0),
+							"dnn_dropout": (0.0, 1.0),
+						}
+		elif self.model_name == "NFM" :
+			self.model = NFM
+			self.pbounds = {
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
+							"l2_reg_linear": (0.00001, 1.0),
+							"l2_reg_embedding": (0.00001, 1.0),
+							"l2_reg_dnn": (0.01, 0.1),
+							"init_std": (0.00001, 1.0),
+							"dnn_dropout": (0.0, 1.0),
+							"bi_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "ONN" :
 			self.model = ONN
 			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
 							"l2_reg_linear": (0.00001, 1.0),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
+							"dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "PNN" :
 			self.model = PNN
 			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
+							"dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "DCN" :
 			self.model = DCN
 			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
 							"l2_reg_linear": (0.00001, 1.0),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_cross": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
+							"dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "DCNMix" :
 			self.model = DCNMix
 			self.pbounds = {
-							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
 							"l2_reg_linear": (0.00001, 1.0),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_cross": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.01, 0.1),
+							"dnn_dropout": (0.01, 0.1),
 							# "low_rank": (4, 128),
 							# "num_experts": (4, 32),
 						}
@@ -191,7 +202,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
+							"dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "AutoInt" :
 			self.model = AutoInt
@@ -202,7 +213,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							# "dnn_dropout": (0.0, 1.0),
+							"dnn_dropout": (0.0, 1.0),
 						}
 
 		self._random_state = ensure_rng (random_state)

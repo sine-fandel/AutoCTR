@@ -190,6 +190,16 @@ class TargetSpace(object):
 			target = self._cache[_hashable(x)]
 		except KeyError:
 			params = dict (zip (self._keys, x))
+			if "dnn_hidden_units1" in params :
+				u1 = params.pop ('dnn_hidden_units1')
+				u2 = params.pop ('dnn_hidden_units2')
+				params['dnn_hidden_units'] = (round (u1), round (u2))
+			
+			if "cin_layer_size1" in params :
+				u1 = params.pop ('cin_layer_size1')
+				u2 = params.pop ('cin_layer_size2')
+				params['cin_layer_size'] = (round (u1), round (u2))
+
 			target = self.target_func (**params)
 			self.register(x, target)
 		return target
@@ -215,6 +225,7 @@ class TargetSpace(object):
 		data = np.empty((1, self.dim))
 		for col, (lower, upper) in enumerate(self._bounds):
 			data.T[col] = self.random_state.uniform(lower, upper, size=1)
+
 		return data.ravel()
 
 	def max(self):
