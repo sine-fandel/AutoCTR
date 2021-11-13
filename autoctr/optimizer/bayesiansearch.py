@@ -97,7 +97,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "xDeepFM" :
 			self.model = xDeepFM
@@ -110,7 +110,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_dnn": (0.01, 0.1),
 							"l2_reg_cin": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "IFM" :
 			self.model = IFM
@@ -121,7 +121,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "DIFM" :
 			self.model = DIFM
@@ -132,7 +132,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "NFM" :
 			self.model = NFM
@@ -144,7 +144,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
 							"dnn_dropout": (0.0, 1.0),
-							"bi_dropout": (0.0, 1.0),
+							# "bi_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "ONN" :
 			self.model = ONN
@@ -155,7 +155,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "PNN" :
 			self.model = PNN
@@ -165,7 +165,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "DCN" :
 			self.model = DCN
@@ -177,7 +177,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_cross": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "DCNMix" :
 			self.model = DCNMix
@@ -189,7 +189,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_cross": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.01, 0.1),
+							# "dnn_dropout": (0.01, 0.1),
 							# "low_rank": (4, 128),
 							# "num_experts": (4, 32),
 						}
@@ -202,7 +202,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 		elif self.model_name == "AutoInt" :
 			self.model = AutoInt
@@ -213,7 +213,7 @@ class BayesianOptimization (Observable) :
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
-							"dnn_dropout": (0.0, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
 						}
 
 		self._random_state = ensure_rng (random_state)
