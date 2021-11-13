@@ -6,7 +6,7 @@ with open ("README.md", "r") as fh :
 
 setup (
 	name="autoctr",
-	version="1.0.0",
+	version="0.5.1",
 	author="Zhengxin Fang",
 	author_email="358746595@qq.com",
 	description="Automated Machine Learning for CTR",
