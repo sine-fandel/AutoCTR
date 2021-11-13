@@ -1,1 +1,1 @@
-This project is about the application of AutoML in CTR prediction field 
+## AutoCTR: An Automated Machine Learning based Click-Through-Rate Predictive Model
