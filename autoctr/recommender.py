@@ -481,7 +481,7 @@ class Recommender (object) :
 													task=self.task, batch_size=batch_size, save_path=save_path)	
 			best_param = bayesian_search.maximize ()
 
-			with open (hp_path + Model.__name__ + "_" + str (time.time ()) + ".json", "w") as f :
+			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
 
 
