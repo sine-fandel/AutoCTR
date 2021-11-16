@@ -200,7 +200,7 @@ class TargetSpace(object):
 				u2 = params.pop ('cin_layer_size2')
 				params['cin_layer_size'] = (round (u1), round (u2))
 
-			target = self.target_func (**params)
+			target, _ = self.target_func (**params)
 			self.register(x, target)
 		return target
 

@@ -1,4 +1,6 @@
 import warnings
+from scipy.stats.stats import mode
+import torch
 
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from .core.util import UtilityFunction, acq_max, ensure_rng
@@ -78,7 +80,7 @@ class BayesianOptimization (Observable) :
 	:param verbose: The level of verbosity.
 	:param bounds_transformer: If provided, the transformation is applied to the bounds.
 	"""
-	def __init__ (self, model_name, epochs, max_evals, inputs, task="binary", device="cpu", 
+	def __init__ (self, model_name, epochs, save_path, max_evals, inputs, task="binary", device="cpu", 
 				random_state=None, verbose=2, bounds_transformer=None, target="label", metrics="0",
 				batch_size=256):
 		self.model_name = model_name
@@ -87,6 +89,7 @@ class BayesianOptimization (Observable) :
 		self.metrics = metrics
 		self.device = device
 		self.task = task
+		self.save_path = save_path
 		self.batch_size = batch_size
 		if self.model_name == "DeepFM" :
 			self.model = DeepFM
@@ -265,7 +268,7 @@ class BayesianOptimization (Observable) :
 		elif self.metrics == 0 :
 			res = -mean_squared_error (self.inputs[1][self.target].values, pred_ans)
 
-		return res
+		return res, model
 
 	@property
 	def space(self):
@@ -378,7 +381,24 @@ class BayesianOptimization (Observable) :
 				bar.text ("#%d  score: %.4f		Best score currently: %.4f" % (iteration, round (self.res[-1]['target'], 4), round (best_score, 4)))
 
 		print ("Best Score: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
-		# print ("Best Hyperparameters: ", (best_param))
+		print ("Saving best model ...")
+		if "dnn_hidden_units1" in best_param :
+				u1 = best_param.pop ('dnn_hidden_units1')
+				u2 = best_param.pop ('dnn_hidden_units2')
+				best_param['dnn_hidden_units'] = (round (u1), round (u2))
+
+		res, best_model = self.target_fun (**best_param)
+		torch.save (best_model.state_dict (), self.save_path + self.model.__name__ + ".pth")
+		print ("The best model was saved in ", self.save_path)
+
+		#################################
+		##loading and testing the model##
+		#################################
+		test_model = DeepFM (self.inputs[4], self.inputs[5], task=self.task, device=self.device, **best_param)
+		test_model.load_state_dict (torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM.pth"))
+		res = test_model.predict (self.inputs[3], 256)
+		print (res)
+
 		return best_param
 		
 

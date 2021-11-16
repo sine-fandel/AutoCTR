@@ -7,7 +7,6 @@ Author:
 AutoML for Recommender to find the best recommender pipeline
 
 """
-from .preprocessor.profile import Profiling
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
 from .preprocessor.quality import QoD
@@ -46,7 +45,8 @@ class Recommender (object) :
 			print (self.data)
 
 			self.target = target
-			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
+			# self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
+			self.model_list = [DeepFM]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0
@@ -477,7 +477,7 @@ class Recommender (object) :
 			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
 			bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=device,
 													model_name=Model.__name__, epochs=epochs, max_evals=max_evals, target=self.target, metrics=self.metrics,
-													task=self.task, batch_size=batch_size)	
+													task=self.task, batch_size=batch_size, save_path=save_path)	
 			best_param = bayesian_search.maximize ()
 
 			with open (hp_path + Model.__name__ + ".json", "w") as f :
