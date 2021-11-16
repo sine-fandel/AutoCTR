@@ -389,7 +389,7 @@ class BayesianOptimization (Observable) :
 				best_param['dnn_hidden_units'] = (round (u1), round (u2))
 
 		res, best_model = self.target_fun (**best_param)
-		torch.save (best_model.state_dict (), self.save_path + self.model.__name__ + "_" + str (1) +  ".pth")
+		torch.save (best_model, self.save_path + self.model.__name__ + "_" + str (1) +  ".pt")
 		print ("The best model was saved in ", self.save_path)
 
 		# #################################
@@ -399,6 +399,8 @@ class BayesianOptimization (Observable) :
 		# test_model.load_state_dict (torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM.pth"))
 		# res = test_model.predict (self.inputs[3], 256)
 		# print (res)
+		test_model = torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM_1.pt")
+		print (test_model.predict (self.inputs[3], 256))
 
 		return best_param
 		
