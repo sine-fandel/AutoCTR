@@ -1,6 +1,7 @@
 import warnings
 from scipy.stats.stats import mode
 import torch
+import time
 
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from .core.util import UtilityFunction, acq_max, ensure_rng
@@ -388,16 +389,16 @@ class BayesianOptimization (Observable) :
 				best_param['dnn_hidden_units'] = (round (u1), round (u2))
 
 		res, best_model = self.target_fun (**best_param)
-		torch.save (best_model.state_dict (), self.save_path + self.model.__name__ + ".pth")
+		torch.save (best_model.state_dict (), self.save_path + self.model.__name__ + "_" + str (1) +  ".pth")
 		print ("The best model was saved in ", self.save_path)
 
-		#################################
-		##loading and testing the model##
-		#################################
-		test_model = DeepFM (self.inputs[4], self.inputs[5], task=self.task, device=self.device, **best_param)
-		test_model.load_state_dict (torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM.pth"))
-		res = test_model.predict (self.inputs[3], 256)
-		print (res)
+		# #################################
+		# ##loading and testing the model##
+		# #################################
+		# test_model = DeepFM (self.inputs[4], self.inputs[5], task=self.task, device=self.device, **best_param)
+		# test_model.load_state_dict (torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM.pth"))
+		# res = test_model.predict (self.inputs[3], 256)
+		# print (res)
 
 		return best_param
 		
