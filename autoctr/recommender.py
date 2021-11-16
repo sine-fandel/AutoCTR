@@ -57,6 +57,7 @@ class Recommender (object) :
 			self.metrics = 0
 			self.data_schema = {}
 			self.quality_list = []
+			self.best_com = []
 	
 	def generate_pdf (self, report_path) :
 		"""Generate the pdf report of data
@@ -229,6 +230,7 @@ class Recommender (object) :
 			self.input_list = []
 			if not pre_train :
 				best_com = None
+			self.best_com = best_com
 			self.feature_engineering (col_list=best_com)
 			self.run (batch_size=batch_size, epochs=epochs, Model=model)
 			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner)
@@ -470,7 +472,7 @@ class Recommender (object) :
 			best_param = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
 												self.input_list[1][self.target].values, epochs=epochs)
 									
-			with open (hp_path + Model.__name__ + ".json", "w") as f :
+			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
 
 
@@ -483,6 +485,10 @@ class Recommender (object) :
 
 			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
+			with open (hp_path + Model.__name__ + "_" + str (1) + "_com.txt", "w") as file :
+				for bc in self.best_com :
+					file.write (bc)
+					file.write ('\n')
 
 
 	# def _get_model (self, models=[]) :
