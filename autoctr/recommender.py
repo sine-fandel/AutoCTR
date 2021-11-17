@@ -58,6 +58,7 @@ class Recommender (object) :
 			self.data_schema = {}
 			self.quality_list = []
 			self.best_com = []
+			self.pre_train = 0
 	
 	def generate_pdf (self, report_path) :
 		"""Generate the pdf report of data
@@ -143,6 +144,7 @@ class Recommender (object) :
 		:param report_path: the path of saving data report
 		:param max_evals: max epoch of search
 		"""
+		self.pre_train = pre_train
 		################################################################
 		#	Data quality checking and data cleaning					   #
 		################################################################
@@ -485,10 +487,12 @@ class Recommender (object) :
 
 			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
-			with open (hp_path + Model.__name__ + "_" + str (1) + "_com.txt", "w") as file :
-				for bc in self.best_com :
-					file.write (bc)
-					file.write ('\n')
+			if self.pre_train : 
+				# if pre_train == 1 then save the best combination
+				with open (hp_path + Model.__name__ + "_" + str (1) + "_com.txt", "w") as file :
+					for bc in self.best_com :
+						file.write (bc)
+						file.write ('\n')
 
 
 	# def _get_model (self, models=[]) :

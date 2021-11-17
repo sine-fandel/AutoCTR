@@ -399,8 +399,8 @@ class BayesianOptimization (Observable) :
 		# test_model.load_state_dict (torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM.pth"))
 		# res = test_model.predict (self.inputs[3], 256)
 		# print (res)
-		test_model = torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM_1.pt")
-		print (test_model.predict (self.inputs[3], 256))
+		# test_model = torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM_1.pt")
+		# print (test_model.predict (self.inputs[3], 256))
 
 		return best_param
 		
