@@ -7,13 +7,15 @@ Author:
 AutoML for Recommender to find the best recommender pipeline
 
 """
+from .optimizer import geneticsearch
+from .optimizer.core.param import CategoricalParam, ContinuousParam
 from .preprocessor.cleaning import Impute
 from .preprocessor.feature_column import SparseFeat, DenseFeat
 from .preprocessor.quality import QoD
 from .preprocessor.ml_schema import ML_schema
 
 from .models import *
-from .optimizer import RandomSearch, BayesianOptimization
+from .optimizer import RandomSearch, BayesianOptimization, GeneticHyperopt
 
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from sklearn.model_selection import train_test_split
@@ -59,6 +61,7 @@ class Recommender (object) :
 			self.quality_list = []
 			self.best_com = []
 			self.pre_train = 0
+			self.maximize = False
 	
 	def generate_pdf (self, report_path) :
 		"""Generate the pdf report of data
@@ -134,7 +137,7 @@ class Recommender (object) :
 
 		doc.build (story)
 
-	def get_pipeline (self, max_evals=10, frac=0.1, impute_method="simple", tuner="bayesian", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf") :
+	def get_pipeline (self, max_evals=10, frac=0.1, pop_size=40, impute_method="simple", tuner="bayesian", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf") :
 		"""Get the best recommender pipeline for specify dataset
 		:param frac: The frac of pre-train dataset
 		:param impute_method: The method for imputing missing value
@@ -175,6 +178,7 @@ class Recommender (object) :
 			self.metrics = 1			# AUC
 			self.task = "binary"
 			best_score = 0
+			self.maximize = True
 
 		for model in self.model_list :
 			if pre_train :
@@ -235,7 +239,7 @@ class Recommender (object) :
 			self.best_com = best_com
 			self.feature_engineering (col_list=best_com)
 			self.run (batch_size=batch_size, epochs=epochs, Model=model)
-			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner)
+			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner, pop_size=pop_size)
 
 	def get_types (self) :
 		"""Get the column types
@@ -264,7 +268,7 @@ class Recommender (object) :
 	def data_cleaning (self, impute_method="simple") :
 		"""clean the data
 		"""
-		print ("Quality Cleaning ......")
+		print ("Data Cleaning ......")
 		impute = Impute (self.data)
 		if impute_method == 'knn' :
 			self.data = impute.KnnImputation (n_neighbors=2)
@@ -433,7 +437,7 @@ class Recommender (object) :
 # 			else :
 # 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
 
-	def search (self, batch_size=256, Model=DeepFM, tuner="bayesian", save_path="./PKL/", hp_path="./HP/", max_evals=10, epochs=100) :
+	def search (self, batch_size=256, Model=DeepFM, tuner="bayesian", save_path="./PKL/", hp_path="./HP/", max_evals=10, epochs=100, pop_size=40) :
 		"""Search the best hyperparameters for model
 		"""
 		if max_evals == 0 :
@@ -494,6 +498,21 @@ class Recommender (object) :
 						file.write (bc)
 						file.write ('\n')
 
+		elif tuner == "genetic" :
+			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
+			geneticsearch = GeneticHyperopt (train_model_input=self.input_list[2], train_y=self.input_list[0][self.target].values, test_model_input=self.input_list[3], test_y=self.input_list[1][self.target].values,
+											model_name=Model.__name__, linear_feature_columns=self.input_list[4], maximize=self.maximize, metrics=self.metrics, dnn_feature_columns=self.input_list[5], task=self.task, device="cpu",
+											batch_size=batch_size, num_gen=max_evals, epochs=epochs, pop_size=pop_size)
+			if Model.__name__ == "DeepFM" :
+				l2_reg_linear_param = ContinuousParam ("l2_reg_linear", 0.5, 0.1, min_limit=0, max_limit=1, is_int=False)
+				l2_reg_embedding_param = ContinuousParam ("l2_reg_embedding", 0.5, 0.1, min_limit=0, max_limit=1, is_int=False)
+				l2_reg_dnn_param = ContinuousParam ("l2_reg_dnn", 0.5, 0.1, min_limit=0, max_limit=1, is_int=False)
+				init_std_param = ContinuousParam ("init_std", 0.5, 0.1, min_limit=0, max_limit=1, is_int=False)
+				# dnn_dropout_param = ContinuousParam ("dnn_dropout", 0.5, 0.01, min_limit=0, max_limit=1, is_int=False)
+				
+				geneticsearch.add_param (l2_reg_linear_param).add_param (l2_reg_embedding_param).add_param (l2_reg_dnn_param).add_param (init_std_param)
+
+			best_params, best_score = geneticsearch.evolve()
 
 	# def _get_model (self, models=[]) :
 	# 	"""Get models

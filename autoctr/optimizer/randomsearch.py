@@ -171,7 +171,7 @@ class RandomSearch () :
 					model.compile ("adam", "mse", metrics=["mse"], )
 
 				model.fit (train_model_input, train_y, epochs=epochs, verbose=verbose, earl_stop_patience=earl_stop_patience, if_tune=1, batch_size=self.batch_size)
-				pred_ans = model.predict (test_model_input, 256)
+				pred_ans = model.predict (test_model_input, self.batch_size)
 
 				if self.metrics == 1 :
 					cur_score = roc_auc_score (test_y, pred_ans)

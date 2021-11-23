@@ -262,7 +262,7 @@ class BayesianOptimization (Observable) :
 			model.compile ("adam", "mse", metrics=["mse"], )
 		
 		model.fit (self.inputs[2], self.inputs[0][self.target].values, batch_size=self.batch_size, epochs=self.epochs, verbose=2, earl_stop_patience=0, if_tune=1)
-		pred_ans = model.predict (self.inputs[3], 256)
+		pred_ans = model.predict (self.inputs[3], self.batch_size)
 
 		if self.metrics == 1 :
 			res = roc_auc_score (self.inputs[1][self.target].values, pred_ans)
