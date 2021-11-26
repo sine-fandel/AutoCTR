@@ -164,8 +164,8 @@ class BayesianOptimization (Observable) :
 		elif self.model_name == "PNN" :
 			self.model = PNN
 			self.pbounds = {
-							"dnn_hidden_units1": (16, 2048),
-							"dnn_hidden_units2": (16, 2048),
+							# "dnn_hidden_units1": (16, 2048),
+							# "dnn_hidden_units2": (16, 2048),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
@@ -211,9 +211,20 @@ class BayesianOptimization (Observable) :
 		elif self.model_name == "AutoInt" :
 			self.model = AutoInt
 			self.pbounds = {
-							"att_layer_num": [1, 10],
+							# "att_layer_num": (1, 10),
 							# "att_head_num": ,
 							# "dnn_hidden_units": (np.arange (16, 2048, 16), np.arange (16, 2048, 16)),
+							"l2_reg_embedding": (0.00001, 1.0),
+							"l2_reg_dnn": (0.01, 0.1),
+							"init_std": (0.00001, 1.0),
+							# "dnn_dropout": (0.0, 1.0),
+						}
+		elif self.model_name == "WDL" :
+			self.model = WDL
+			self.pbounds = {
+							"dnn_hidden_units1": (16, 2048),
+							"dnn_hidden_units2": (16, 2048),
+							"l2_reg_linear": (0.00001, 1.0),
 							"l2_reg_embedding": (0.00001, 1.0),
 							"l2_reg_dnn": (0.01, 0.1),
 							"init_std": (0.00001, 1.0),
@@ -382,15 +393,15 @@ class BayesianOptimization (Observable) :
 				bar.text ("#%d  score: %.4f		Best score currently: %.4f" % (iteration, round (self.res[-1]['target'], 4), round (best_score, 4)))
 
 		print ("Best Score: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
-		print ("Saving best model ...")
-		if "dnn_hidden_units1" in best_param :
-				u1 = best_param.pop ('dnn_hidden_units1')
-				u2 = best_param.pop ('dnn_hidden_units2')
-				best_param['dnn_hidden_units'] = (round (u1), round (u2))
+		# print ("Saving best model ...")
+		# if "dnn_hidden_units1" in best_param :
+		# 		u1 = best_param.pop ('dnn_hidden_units1')
+		# 		u2 = best_param.pop ('dnn_hidden_units2')
+		# 		best_param['dnn_hidden_units'] = (round (u1), round (u2))
 
-		res, best_model = self.target_fun (**best_param)
-		torch.save (best_model, self.save_path + self.model.__name__ + "_" + str (1) +  ".pt")
-		print ("The best model was saved in ", self.save_path)
+		# res, best_model = self.target_fun (**best_param)
+		# torch.save (best_model, self.save_path + self.model.__name__ + "_" + str (1) +  ".pt")
+		# print ("The best model was saved in ", self.save_path)
 
 		# #################################
 		# ##loading and testing the model##
@@ -402,7 +413,7 @@ class BayesianOptimization (Observable) :
 		# test_model = torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM_1.pt")
 		# print (test_model.predict (self.inputs[3], 256))
 
-		return best_param
+		return best_param, best_score
 		
 
 	def set_bounds(self, new_bounds):

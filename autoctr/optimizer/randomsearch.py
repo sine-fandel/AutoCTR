@@ -164,6 +164,8 @@ class RandomSearch () :
 										task=self.task, device=self.device, **random_params)
 				elif self.model_name == "AutoInt" :
 					model = AutoInt (linear_feature_columns=self.linear_feature_columns, dnn_feature_columns=self.dnn_feature_columns, **random_params)
+				elif self.model_name == "WDL" :
+					model = WDL (linear_feature_columns=self.linear_feature_columns, dnn_feature_columns=self.dnn_feature_columns, **random_params)
 
 				if self.metrics == 1 :
 					model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
@@ -193,7 +195,7 @@ class RandomSearch () :
 
 		print ("Best Score: %.4f in %d" % (best_score, best_round))
 		# print ("Best Hyperparameters: ", (best_param))
-		return best_param
+		return best_param, best_score
 
 
 

@@ -49,7 +49,7 @@ class Recommender (object) :
 
 			self.target = target
 			# self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
-			self.model_list = [DeepFM]
+			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, DCN, ONN, WDL]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0
@@ -169,16 +169,18 @@ class Recommender (object) :
 		temp = self.data
 		column_list = self.data.columns.values.tolist ()
 		column_list.remove (self.target)
+
 		if self.data[self.target].nunique () > 2:
 			self.metrics = 0			# MSE
 			self.task = "regression"
 			best_score = 9999
- 
+			best_model_score = 9999
 		else :
 			self.metrics = 1			# AUC
 			self.task = "binary"
 			best_score = 0
 			self.maximize = True
+			best_model_score = 0
 
 		for model in self.model_list :
 			if pre_train :
@@ -239,7 +241,19 @@ class Recommender (object) :
 			self.best_com = best_com
 			self.feature_engineering (col_list=best_com)
 			self.run (batch_size=batch_size, epochs=epochs, Model=model)
-			self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner, pop_size=pop_size)
+			s_param, s_score = self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner, pop_size=pop_size)
+			if self.metrics == 0 :
+				if best_model_score > s_score :
+					best_model = model
+					best_model_score = s_score
+					best_param = s_param
+			else :
+				if best_model_score < s_score :
+					best_model = model
+					best_model_score = s_score
+					best_param = s_param
+		
+		return best_model, best_model_score, best_param
 
 	def get_types (self) :
 		"""Get the column types
@@ -475,7 +489,7 @@ class Recommender (object) :
 										dnn_feature_columns=self.input_list[5], task=self.task, metrics=self.metrics,
 										device="cpu", max_evals=max_evals, save_path=save_path, batch_size=batch_size)
 
-			best_param = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
+			best_param, best_score = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
 												self.input_list[1][self.target].values, epochs=epochs)
 									
 			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
@@ -487,7 +501,7 @@ class Recommender (object) :
 			bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=device,
 													model_name=Model.__name__, epochs=epochs, max_evals=max_evals, target=self.target, metrics=self.metrics,
 													task=self.task, batch_size=batch_size, save_path=save_path)	
-			best_param = bayesian_search.maximize ()
+			best_param, best_score = bayesian_search.maximize ()
 
 			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
@@ -514,6 +528,7 @@ class Recommender (object) :
 
 			best_params, best_score = geneticsearch.evolve()
 
+		return best_param, best_score
 	# def _get_model (self, models=[]) :
 	# 	"""Get models
 
