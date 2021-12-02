@@ -253,7 +253,7 @@ class Recommender (object) :
 					best_model_score = s_score
 					best_param = s_param
 		
-		return best_model, best_model_score, best_param
+		return best_model, best_model_score, best_param, self.metrics
 
 	def get_types (self) :
 		"""Get the column types
