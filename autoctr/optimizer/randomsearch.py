@@ -182,10 +182,12 @@ class RandomSearch () :
 
 				if self.metrics == 1 and cur_score > best_score :
 					best_round = i
+					best_model = model
 					best_score = cur_score
 					best_param = random_params
 				elif self.metrics == 0 and cur_score < best_score :
 					best_round = i
+					best_model = model
 					best_score = cur_score
 					best_param = random_params
 
@@ -195,7 +197,7 @@ class RandomSearch () :
 
 		print ("Best Score: %.4f in %d" % (best_score, best_round))
 		# print ("Best Hyperparameters: ", (best_param))
-		return best_param, best_score
+		return best_param, best_score, best_model
 
 
 

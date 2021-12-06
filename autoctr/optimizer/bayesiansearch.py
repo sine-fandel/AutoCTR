@@ -273,6 +273,7 @@ class BayesianOptimization (Observable) :
 			model.compile ("adam", "mse", metrics=["mse"], )
 		
 		model.fit (self.inputs[2], self.inputs[0][self.target].values, batch_size=self.batch_size, epochs=self.epochs, verbose=2, earl_stop_patience=0, if_tune=1)
+
 		pred_ans = model.predict (self.inputs[3], self.batch_size)
 
 		if self.metrics == 1 :
@@ -394,12 +395,12 @@ class BayesianOptimization (Observable) :
 
 		print ("Best Score: %.4f in %d" % (round (best_score, 4), round (best_round, 4)))
 		# print ("Saving best model ...")
-		# if "dnn_hidden_units1" in best_param :
-		# 		u1 = best_param.pop ('dnn_hidden_units1')
-		# 		u2 = best_param.pop ('dnn_hidden_units2')
-		# 		best_param['dnn_hidden_units'] = (round (u1), round (u2))
+		if "dnn_hidden_units1" in best_param :
+				u1 = best_param.pop ('dnn_hidden_units1')
+				u2 = best_param.pop ('dnn_hidden_units2')
+				best_param['dnn_hidden_units'] = (round (u1), round (u2))
 
-		# res, best_model = self.target_fun (**best_param)
+		res, best_model = self.target_fun (**best_param)
 		# torch.save (best_model, self.save_path + self.model.__name__ + "_" + str (1) +  ".pt")
 		# print ("The best model was saved in ", self.save_path)
 
@@ -413,7 +414,7 @@ class BayesianOptimization (Observable) :
 		# test_model = torch.load ("/Users/apple/AutoCTR project/AutoCTR/PKL/bayesian/DeepFM_1.pt")
 		# print (test_model.predict (self.inputs[3], 256))
 
-		return best_param, best_score
+		return best_param, best_score, best_model
 		
 
 	def set_bounds(self, new_bounds):

@@ -504,7 +504,6 @@ class BaseModel(nn.Module) :
 		with torch.no_grad():
 			for _, x_test in enumerate(test_loader):
 				x = x_test[0].to(self.device).float()
-
 				y_pred = model(x).cpu().data.numpy()  # .squeeze()
 				pred_ans.append(y_pred)
 

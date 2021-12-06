@@ -7,6 +7,7 @@ Author:
 AutoML for Recommender to find the best recommender pipeline
 
 """
+from scipy.sparse import data
 from .optimizer import geneticsearch
 from .optimizer.core.param import CategoricalParam, ContinuousParam
 from .preprocessor.cleaning import Impute
@@ -19,7 +20,7 @@ from .optimizer import RandomSearch, BayesianOptimization, GeneticHyperopt
 
 from sklearn.metrics import log_loss, roc_auc_score, mean_squared_error
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from alive_progress import alive_bar
 from imblearn.over_sampling import SMOTE
 
@@ -50,6 +51,7 @@ class Recommender (object) :
 			self.target = target
 			# self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
 			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, DCN, ONN, WDL]
+			# self.model_list = [DeepFM]
 			self.sep = sep
 			self.input_list = []
 			self.tag = 0
@@ -62,6 +64,8 @@ class Recommender (object) :
 			self.best_com = []
 			self.pre_train = 0
 			self.maximize = False
+			self.device = ""
+			self.lbe = None
 	
 	def generate_pdf (self, report_path) :
 		"""Generate the pdf report of data
@@ -153,6 +157,7 @@ class Recommender (object) :
 		################################################################
 		self.quality_checking ()
 		self.data_cleaning (impute_method=impute_method)
+		self.quality_checking ()
 
 		################################################################
 		#	Get the data schema 									   #
@@ -241,19 +246,33 @@ class Recommender (object) :
 			self.best_com = best_com
 			self.feature_engineering (col_list=best_com)
 			self.run (batch_size=batch_size, epochs=epochs, Model=model)
-			s_param, s_score = self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner, pop_size=pop_size)
+			s_param, s_score, best_model = self.search (batch_size=batch_size, max_evals=max_evals, epochs=epochs, Model=model, tuner=tuner, pop_size=pop_size)
 			if self.metrics == 0 :
 				if best_model_score > s_score :
-					best_model = model
+					best_name = model.__name__
+					return_best_model = best_model
 					best_model_score = s_score
 					best_param = s_param
 			else :
 				if best_model_score < s_score :
-					best_model = model
+					best_name = model.__name__
+					return_best_model = best_model
 					best_model_score = s_score
 					best_param = s_param
-		
-		return best_model, best_model_score, best_param, self.metrics
+
+		# if "dnn_hidden_units1" in best_param :
+		# 	u1 = best_param.pop ('dnn_hidden_units1')
+		# 	u2 = best_param.pop ('dnn_hidden_units2')
+		# 	best_param['dnn_hidden_units'] = (round (u1), round (u2))
+
+		# if best_model.__name__ != "PNN" :
+		# 	best_model = best_model (linear_feature_columns=self.input_list[4], dnn_feature_columns=self.input_list[5], task=self.task, device=self.device, **best_param)
+		# else :
+		# 	best_model = best_model (dnn_feature_columns=self.input_list[5], task=self.task, device=self.device, **best_param)
+
+
+
+		return return_best_model, best_model_score, best_param, self.metrics, best_name, self.data_schema
 
 	def get_types (self) :
 		"""Get the column types
@@ -271,6 +290,11 @@ class Recommender (object) :
 		print ("Quality Checking ......")
 		self.tag = 1
 		qod = QoD (self.data, target=self.target)
+		print ("outlier score: ", qod._get_outlier ()['Outlier Detection'])
+		print ("completeness score: ", qod._get_completeness ()['Data Completeness'])
+		print ("duplicated score: ", qod._get_duplicated ()['Data Duplicated'])
+		print ("class parity score: ", qod._get_class_parity ()['Class Parity'])
+		print ("correlation: ", qod._get_correlations ()['Correlation Dection'])
 		self.quality_list.append (qod._get_outlier ())
 		self.quality_list.append (qod._get_completeness ())
 		self.quality_list.append (qod._get_duplicated ())
@@ -318,6 +342,9 @@ class Recommender (object) :
 		else :
 			print ("Data is balanced")
 
+		self.data = self.data.drop_duplicates ()
+		print ("Have deleted duplicated data")
+
 		print ("...done!")
 
 	def feature_engineering (self, test_size=0.2, col_list=None) :
@@ -333,6 +360,7 @@ class Recommender (object) :
 			fixlen_feature_columns = []
 
 			train, test = train_test_split (self.data, test_size=test_size, random_state=2021)
+			test.to_csv ("/Users/apple/AutoCTR project/AutoCTR/example/test1.data", index=None)
 			# feature combination by target encoding
 			if col_list != None :
 				col_list1 = col_list.copy ()
@@ -356,12 +384,15 @@ class Recommender (object) :
 			for key, value in self.data_schema.items () :
 				if key != self.target :
 					if value != 'numerical' :
-						lbe = LabelEncoder ()
-						train[key] = lbe.fit_transform (train[key])
-						test[key] = lbe.fit_transform (test[key])
+						self.lbe = LabelEncoder ()
+						train[key] = self.lbe.fit_transform (train[key])
+						test[key] = self.lbe.fit_transform (test[key])
 						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
 					
 					else :
+						nms = MinMaxScaler (feature_range=(0, 1))
+						train[key] =nms.fit_transform (train[key])
+						test[key] = nms.fit_transform (test[key])
 						fixlen_feature_columns.append (DenseFeat (key, 1, ))
 			
 			if col_list != None :
@@ -392,22 +423,23 @@ class Recommender (object) :
 		test_model_input = self.input_list[3]
 		linear_feature_columns = self.input_list[4]
 		dnn_feature_columns = self.input_list[5]
+	
 
 		use_cuda = True
 		if use_cuda and torch.cuda.is_available () :
 			if if_tune == 0 :
 				print ('cuda ready...')
 				print ("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
-			device = 'cuda:0'
+			self.device = 'cuda:0'
 		else :
 			if if_tune == 0 :
 				print ('using cpu...')
 				print ("Train on {0} samples, validate on {1} samples".format (len(train), len(test)))
-			device = 'cpu'
+			self.device = 'cpu'
 
 
 		if Model.__name__ != "PNN" :
-			model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
+			model = Model (linear_feature_columns=linear_feature_columns, dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=self.device)
 			if self.metrics == 1 :
 				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy"], )
 			else :
@@ -430,7 +462,7 @@ class Recommender (object) :
 # 				self.score.append (round (mean_squared_error (test[self.target].values, pred_ans), 4))
 		
 		else :
-			model = Model (dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=device)
+			model = Model (dnn_feature_columns=dnn_feature_columns, task=self.task, l2_reg_embedding=1e-5, device=self.device)
 			if self.metrics == 1 :
 				model.compile ("adagrad", "binary_crossentropy", metrics=["binary_crossentropy", "auc"], )
 			else :
@@ -473,10 +505,10 @@ class Recommender (object) :
 		use_cuda = True
 		if use_cuda and torch.cuda.is_available () :
 			print ('cuda ready...')
-			device = 'cuda:0'
+			self.device = 'cuda:0'
 		else :
 			print ('using cpu...')
-			device = 'cpu'
+			self.device = 'cpu'
 		
 		if not os.path.exists (save_path) :
 			os.makedirs (save_path)
@@ -487,9 +519,9 @@ class Recommender (object) :
 			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
 			random_search = RandomSearch (model_name=Model.__name__, linear_feature_columns=self.input_list[4],
 										dnn_feature_columns=self.input_list[5], task=self.task, metrics=self.metrics,
-										device="cpu", max_evals=max_evals, save_path=save_path, batch_size=batch_size)
+										device=self.device, max_evals=max_evals, save_path=save_path, batch_size=batch_size)
 
-			best_param, best_score = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
+			best_param, best_score, best_model = random_search.search (self.input_list[2], self.input_list[0][self.target].values, self.input_list[3], 
 												self.input_list[1][self.target].values, epochs=epochs)
 									
 			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
@@ -498,10 +530,10 @@ class Recommender (object) :
 
 		if tuner == "bayesian" :
 			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
-			bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=device,
+			bayesian_search = BayesianOptimization (inputs=self.input_list, random_state=None, verbose=2, bounds_transformer=None, device=self.device,
 													model_name=Model.__name__, epochs=epochs, max_evals=max_evals, target=self.target, metrics=self.metrics,
 													task=self.task, batch_size=batch_size, save_path=save_path)	
-			best_param, best_score = bayesian_search.maximize ()
+			best_param, best_score, best_model = bayesian_search.maximize ()
 
 			with open (hp_path + Model.__name__ + "_" + str (1) + ".json", "w") as f :
 				f.write (json.dumps (best_param, ensure_ascii=False, indent=4, separators=(',', ':')))
@@ -515,7 +547,7 @@ class Recommender (object) :
 		elif tuner == "genetic" :
 			print ("Tuning the %s model by %s..." % (Model.__name__, tuner))
 			geneticsearch = GeneticHyperopt (train_model_input=self.input_list[2], train_y=self.input_list[0][self.target].values, test_model_input=self.input_list[3], test_y=self.input_list[1][self.target].values,
-											model_name=Model.__name__, linear_feature_columns=self.input_list[4], maximize=self.maximize, metrics=self.metrics, dnn_feature_columns=self.input_list[5], task=self.task, device="cpu",
+											model_name=Model.__name__, linear_feature_columns=self.input_list[4], maximize=self.maximize, metrics=self.metrics, dnn_feature_columns=self.input_list[5], task=self.task, device=self.device,
 											batch_size=batch_size, num_gen=max_evals, epochs=epochs, pop_size=pop_size)
 			if Model.__name__ == "DeepFM" :
 				l2_reg_linear_param = ContinuousParam ("l2_reg_linear", 0.5, 0.1, min_limit=0, max_limit=1, is_int=False)
@@ -526,9 +558,9 @@ class Recommender (object) :
 				
 				geneticsearch.add_param (l2_reg_linear_param).add_param (l2_reg_embedding_param).add_param (l2_reg_dnn_param).add_param (init_std_param)
 
-			best_params, best_score = geneticsearch.evolve()
+			best_param, best_score = geneticsearch.evolve()
 
-		return best_param, best_score
+		return best_param, best_score, best_model
 	# def _get_model (self, models=[]) :
 	# 	"""Get models
 

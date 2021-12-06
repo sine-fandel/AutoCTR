@@ -111,7 +111,7 @@ class QoD (object) :
 	def _get_class_parity (self, method="z_score") :
 		"""Get class parity score
 			class imbalance: Shannon Entropy (score: 1 -> best balance)
-			class purity: (total - missingvalue)
+			class purity: (total - missingvalue)s
 			parity score = (class imbalance + class purity) / 2
 		:param method: the method of getting outliers
 		"""
