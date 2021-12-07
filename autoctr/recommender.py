@@ -7,6 +7,7 @@ Author:
 AutoML for Recommender to find the best recommender pipeline
 
 """
+from numpy.lib.function_base import select
 from scipy.sparse import data
 from .optimizer import geneticsearch
 from .optimizer.core.param import CategoricalParam, ContinuousParam
@@ -49,8 +50,8 @@ class Recommender (object) :
 			print (self.data)
 
 			self.target = target
-			# self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
-			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, DCN, ONN, WDL]
+			self.model_list = [DeepFM, xDeepFM, AFN, NFM, IFM, DIFM, AutoInt, PNN, DCN, ONN, WDL]
+			# self.model_list = [WDL, DeepFM, DCN, xDeepFM, AFN, AutoInt, NFM, PNN, ONN, IFM, DIFM]
 			# self.model_list = [DeepFM]
 			self.sep = sep
 			self.input_list = []
@@ -66,6 +67,7 @@ class Recommender (object) :
 			self.maximize = False
 			self.device = ""
 			self.lbe = None
+			self.earl_stop_patience = 0
 	
 	def generate_pdf (self, report_path) :
 		"""Generate the pdf report of data
@@ -141,7 +143,7 @@ class Recommender (object) :
 
 		doc.build (story)
 
-	def get_pipeline (self, max_evals=10, frac=0.1, pop_size=40, impute_method="simple", tuner="bayesian", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf") :
+	def get_pipeline (self, max_evals=10, frac=0.1, pop_size=40, impute_method="simple", tuner="bayesian", batch_size=256, pre_train=1, pre_train_epoch=10, epochs=10, report_path="./data_profile.pdf", earl_stop_patience=0) :
 		"""Get the best recommender pipeline for specify dataset
 		:param frac: The frac of pre-train dataset
 		:param impute_method: The method for imputing missing value
@@ -152,6 +154,7 @@ class Recommender (object) :
 		:param max_evals: max epoch of search
 		"""
 		self.pre_train = pre_train
+		self.earl_stop_patience = earl_stop_patience
 		################################################################
 		#	Data quality checking and data cleaning					   #
 		################################################################
@@ -390,10 +393,14 @@ class Recommender (object) :
 						fixlen_feature_columns.append (SparseFeat (key, self.data[key].nunique ()))
 					
 					else :
-						nms = MinMaxScaler (feature_range=(0, 1))
-						train[key] =nms.fit_transform (train[key])
-						test[key] = nms.fit_transform (test[key])
+						# nms = MinMaxScaler (feature_range=(0, 1))
+						# print (11111111)
+						# train[key] =nms.fit_transform (train[key])
+						# print (22222222)
+						# test[key] = nms.fit_transform (test[key])
 						fixlen_feature_columns.append (DenseFeat (key, 1, ))
+						
+
 			
 			if col_list != None :
 				self.data_schema.pop (new_col_name)
@@ -410,13 +417,14 @@ class Recommender (object) :
 		except Exception as e :
 			print (e)
 
-	def run (self, batch_size=256, epochs=100, verbose=2, save_path="./PKL/", earl_stop_patience=0, if_tune=0, Model=DeepFM) :
+	def run (self, batch_size=256, epochs=100, verbose=2, save_path="./PKL/", if_tune=0, Model=DeepFM) :
 		"""Train and Test
 		"""
 		
 		if not os.path.exists (save_path) :
 			os.makedirs (save_path)
 
+		earl_stop_patience = self.earl_stop_patience
 		train = self.input_list[0]
 		test = self.input_list[1]
 		train_model_input = self.input_list[2]
